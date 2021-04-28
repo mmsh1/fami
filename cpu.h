@@ -7,6 +7,7 @@
 #define MASK_ZERO               0x02
 #define MASK_INTERRUPT_DISABLE  0x04
 #define MASK_DECIMAL            0x08
+
 #define MASK_BFLAG              0x10
 #define MASK_UNUSED             0x20
 #define MASK_OVERFLOW           0x40
