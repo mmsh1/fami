@@ -1,5 +1,5 @@
-#ifndef NES_RAM_H
-#define NES_RAM_H
+#ifndef NES_MEM_H
+#define NES_MEM_H
 
 #include <stdint.h>
 
@@ -9,4 +9,4 @@ uint8_t RAM[RAM_SIZE];
 
 void mem_reset(uint8_t *);
 
-#endif /* NES_RAM_H */
+#endif /* NES_MEM_H */

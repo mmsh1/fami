@@ -17,3 +17,5 @@ cnes: cpu.o mem.o
 clean:
 	rm -f cnes
 	rm -f *.o
+
+.PHONY: all clean
