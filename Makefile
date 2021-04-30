@@ -1,7 +1,6 @@
 CFLAGS = -Wall -Wextra -std=c89 -pedantic
 #-Werror
 
-#test
 all: options cnes
 
 options:
@@ -19,4 +18,4 @@ clean:
 	rm -f cnes
 	rm -f *.o
 
-.PHONY: all clean
+.PHONY: all options clean
