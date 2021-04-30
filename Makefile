@@ -1,6 +1,7 @@
 CFLAGS = -Wall -Wextra -std=c89 -pedantic
 #-Werror
 
+#test
 all: options cnes
 
 options:
