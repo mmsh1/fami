@@ -20,6 +20,8 @@ typedef uint8_t (*opcode_func)(mos6502 *, uint16_t, uint8_t, addr_mode);
 
 /* opcodes */
 /* http://obelisk.me.uk/6502/reference.html */
+
+/*
 static uint8_t OP_ADC(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_AND(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_ASL(mos6502 *, uint16_t, uint8_t, addr_mode);
@@ -76,8 +78,10 @@ static uint8_t OP_TSX(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_TXA(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_TXS(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_TYA(mos6502 *, uint16_t, uint8_t, addr_mode);
+*/
 
 /* Unofficial instructions */
+/*
 static uint8_t OP_ALR(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_ANC(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_ARR(mos6502 *, uint16_t, uint8_t, addr_mode);
@@ -94,291 +98,35 @@ static uint8_t OP_XAA(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_AHX(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_TAS(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_LAS(mos6502 *, uint16_t, uint8_t, addr_mode);
+*/
 
 /* for unsupported or illegal opcodes */
-static uint8_t OP_UNS(mos6502 *, uint16_t, uint8_t, addr_mode);
+/* static uint8_t OP_UNS(mos6502 *, uint16_t, uint8_t, addr_mode); */
 
-/* This table was copied from Rockwell R650x manual */
-static opcode_func optable[0xFF + 1] = {
-	/*OP_BRK
-	OP_ORA
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_ORA
-	OP_ASL
-	OP_UNS
-	OP_PHP
-	OP_ORA
-	OP_ASL
-	OP_UNS
-	OP_UNS
-	OP_ORA
-	OP_ASL
-	OP_UNS
-
-	OP_BPL
-	OP_ORA
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_ORA
-	OP_ASL
-	OP_UNS
-	OP_CLC
-	OP_ORA
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_ORA
-	OP_ASL
-	OP_UNS
-
-	OP_JSR
-	OP_AND
-	OP_UNS
-	OP_UNS
-	OP_BIT
-	OP_AND
-	OP_ROL
-	OP_UNS
-	OP_PLP
-	OP_AND
-	OP_ROL
-	OP_UNS
-	OP_BIT
-	OP_AND
-	OP_ROL
-	OP_UNS
-
-	OP_BMI
-	OP_AND
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_AND
-	OP_ROL
-	OP_UNS
-	OP_SEC
-	OP_AND
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_AND
-	OP_ROL
-	OP_UNS
-
-	OP_RTI
-	OP_EOR
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_EOR
-	OP_LSR
-	OP_UNS
-	OP_PHA
-	OP_EOR
-	OP_LSR
-	OP_UNS
-	OP_JMP
-	OP_EOR
-	OP_LSR
-	OP_UNS
-
-	OP_BVC
-	OP_EOR
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_EOR
-	OP_LSR
-	OP_UNS
-	OP_CLI
-	OP_EOR
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_EOR
-	OP_LSR
-	OP_UNS
-
-	OP_RTS
-	OP_ADC
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_ADC
-	OP_ROR
-	OP_UNS
-	OP_PLA
-	OP_ADC
-	OP_ROR
-	OP_UNS
-	OP_JMP
-	OP_ADC
-	OP_ROR
-	OP_UNS
-
-	OP_BVS
-	OP_ADC
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_ADC
-	OP_ROR
-	OP_UNS
-	OP_SEI
-	OP_ADC
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_ADC
-	OP_ROR
-	OP_UNS
-
-	OP_UNS
-	OP_STA
-	OP_UNS
-	OP_UNS
-	OP_STY
-	OP_STA
-	OP_STX
-	OP_UNS
-	OP_DEY
-	OP_UNS
-	OP_TXA
-	OP_UNS
-	OP_STY
-	OP_STA
-	OP_STX
-	OP_UNS
-
-	OP_BCC
-	OP_STA
-	OP_UNS
-	OP_UNS
-	OP_STY
-	OP_STA
-	OP_STX
-	OP_UNS
-	OP_TYA
-	OP_STA
-	OP_TXS
-	OP_UNS
-	OP_UNS
-	OP_STA
-	OP_UNS
-	OP_UNS
-
-	OP_LDY
-	OP_LDA
-	OP_LDX
-	OP_UNS
-	OP_LDY
-	OP_LDA
-	OP_LDX
-	OP_UNS
-	OP_TAY
-	OP_LDA
-	OP_TAX
-	OP_UNS
-	OP_LDY
-	OP_LDA
-	OP_LDX
-	OP_UNS
-
-	OP_BCS
-	OP_LDA
-	OP_UNS
-	OP_UNS
-	OP_LDY
-	OP_LDA
-	OP_LDX
-	OP_UNS
-	OP_CLV
-	OP_LDA
-	OP_TSX
-	OP_UNS
-	OP_LDY
-	OP_LDA
-	OP_LDX
-	OP_UNS
-
-	OP_CPY
-	OP_CMP
-	OP_UNS
-	OP_UNS
-	OP_CPY
-	OP_CMP
-	OP_DEC
-	OP_UNS
-	OP_INY
-	OP_CMP
-	OP_DEX
-	OP_UNS
-	OP_CPY
-	OP_CMP
-	OP_DEC
-	OP_UNS
-
-	OP_BNE
-	OP_CMP
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_CMP
-	OP_DEC
-	OP_UNS
-	OP_CLD
-	OP_CMP
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_CMP
-	OP_DEC
-	OP_UNS
-
-	OP_CPX
-	OP_SBC
-	OP_UNS
-	OP_UNS
-	OP_CPX
-	OP_SBC
-	OP_INC
-	OP_UNS
-	OP_INX
-	OP_SBC
-	OP_NOP
-	OP_UNS
-	OP_CPX
-	OP_SBC
-	OP_INC
-	OP_UNS
-
-	OP_BEQ
-	OP_SBC
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_SBC
-	OP_INC
-	OP_UNS
-	OP_SED
-	OP_SBC
-	OP_UNS
-	OP_UNS
-	OP_UNS
-	OP_SBC
-	OP_INC
-	OP_UNS*/
-};
-
-static void clock(void);
+/*static void clock(void);
 static void reset(void);
 static void set_irq(void);
-static void set_nmi(void);
+static void set_nmi(void);*/
 
-static void
+uint8_t fetch_opcode(mos6502 *cpu, uint8_t *mem, uint8_t cycles)
+{
+	uint8_t data = mem[cpu->PC];
+	(cpu->PC)++;
+	cycles--;
+	return data;
+}
+
+void
+execute(mos6502 *cpu, uint8_t *mem, uint8_t cycles)
+{
+	uint8_t opcode;
+
+	while (cycles > 0) {
+		opcode = fetch_opcode(cpu, mem, cycles);
+	}
+}
+
+/*static void
 clock(void)
 {
 }
@@ -396,7 +144,7 @@ set_irq(void)
 static void
 set_nmi(void)
 {
-}
+}*/
 
 uint8_t
 get_flag(mos6502 *cpu, uint8_t bit)
@@ -419,12 +167,4 @@ cpu_reset(mos6502 *cpu)
 	cpu->A = 0;
 	cpu->X = 0;
 	cpu->Y = 0;
-}
-
-int
-test(void)
-{
-	/* mock for building */
-	fprintf(stderr, "test\n");
-	return 0;
 }
