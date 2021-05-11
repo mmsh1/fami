@@ -21,6 +21,29 @@ typedef uint8_t (*opcode_func)(mos6502 *, uint16_t, uint8_t, addr_mode);
 /* opcodes */
 /* http://obelisk.me.uk/6502/reference.html */
 
+static uint8_t fetch_opcode(mos6502 *, uint8_t *, uint8_t);
+static uint8_t read_byte(uint8_t *, uint8_t, uint8_t);
+static void OP_LDA(mos6502 *, uint8_t *, uint8_t, addr_mode);
+
+static void
+OP_LDA(mos6502 *cpu, uint8_t *mem, uint8_t cycles, addr_mode mode)
+{
+	uint8_t zp_addr;
+	fprintf(stderr, "OP_LDA_%d\n", mode);
+
+	if (mode == IMMEDIATE) {
+		cpu->A = fetch_opcode(cpu, mem, cycles);
+	}
+
+	if (mode == ZERO_PAGE) {
+		zp_addr = fetch_opcode(cpu, mem, cycles);
+		cpu->A = read_byte(mem, zp_addr, cycles);
+	}
+
+	set_flag(cpu, MASK_ZERO, cpu->A == 0); /* TODO rewrite!! */
+	set_flag(cpu, MASK_NEGATIVE, cpu->A & 0x80); /* TODO rewrite!! */
+}
+
 /*
 static uint8_t OP_ADC(mos6502 *, uint16_t, uint8_t, addr_mode);
 static uint8_t OP_AND(mos6502 *, uint16_t, uint8_t, addr_mode);
@@ -108,10 +131,19 @@ static void reset(void);
 static void set_irq(void);
 static void set_nmi(void);*/
 
-uint8_t fetch_opcode(mos6502 *cpu, uint8_t *mem, uint8_t cycles)
+static uint8_t
+fetch_opcode(mos6502 *cpu, uint8_t *mem, uint8_t cycles)
 {
 	uint8_t data = mem[cpu->PC];
 	(cpu->PC)++;
+	cycles--;
+	return data;
+}
+
+static uint8_t
+read_byte(uint8_t *mem, uint8_t address, uint8_t cycles)
+{
+	uint8_t data = mem[address];
 	cycles--;
 	return data;
 }
@@ -123,6 +155,19 @@ execute(mos6502 *cpu, uint8_t *mem, uint8_t cycles)
 
 	while (cycles > 0) {
 		opcode = fetch_opcode(cpu, mem, cycles);
+
+		switch (opcode) {
+			/* TODO arrange opcodes somehow */
+			case 0xA9: /* INS_LDA_IM */
+				OP_LDA(cpu, mem, cycles, IMMEDIATE);
+				break;
+			case 0xA5: /* INS_LDA_ZP */
+				OP_LDA(cpu, mem, cycles, ZERO_PAGE);
+				break;
+			default:
+				fprintf(stderr, "ERROR: UNKNOWN OPCODE!\n");
+				break;
+		}
 	}
 }
 

@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -std=c89 -pedantic
+CFLAGS = -Wall -Wextra -std=c89 -pedantic -g3
 #-Werror
 
 all: options cnes
@@ -11,7 +11,7 @@ options:
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-cnes: cpu.o mem.o
+cnes: cpu.o mem.o nes.o
 	$(CC) -o $@ $^
 
 clean:
