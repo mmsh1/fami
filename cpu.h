@@ -22,12 +22,10 @@ typedef struct {
 	uint16_t PC;    /* program counter */
 } mos6502;
 
-uint8_t	get_flag(mos6502 *, uint8_t);
-uint8_t	read_from_bus(uint16_t);
-void	cpu_init(mos6502 *);
-void	cpu_reset(mos6502 *);
-void	execute(mos6502 *, uint8_t *, uint8_t);
-void	set_flag(mos6502 *, uint8_t, uint8_t);
-void	write_to_bus(uint16_t, uint8_t);
+uint8_t get_flag(mos6502 *, uint8_t);
+void cpu_init(mos6502 *);
+void cpu_reset(mos6502 *);
+void execute(mos6502 *, uint8_t *, uint8_t);
+void set_flag(mos6502 *, uint8_t, uint8_t);
 
 #endif /* NES_CPU_H */
