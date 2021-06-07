@@ -4,139 +4,303 @@
 #include "cpu.h"
 
 typedef enum {
-	ADDR_ACC,
-	ADDR_IMM,
-	ADDR_ABS,
-	ADDR_ZP,
-	ADDR_IZX,
-	ADDR_IZY,
-	ADDR_IAX,
-	ADDR_IAY,
-	ADDR_IMP,
-	ADDR_REL,
-	ADDR_INX,
-	ADDR_INY,
-	ADDR_IND,
-	ADDR_XXX
+	ADDR_ACC,	/* accumulator */
+	ADDR_IMM,	/* immediate */
+	ADDR_ABS,	/* absolute */
+	ADDR_ZP,	/* zero page */
+	ADDR_IZX,	/* indexed zero page x */
+	ADDR_IZY,	/* indexed zero page y */
+	ADDR_IAX,	/* indexed absolute x */
+	ADDR_IAY,	/* indexed absolute y */
+	ADDR_IMP,	/* implied */
+	ADDR_REL,	/* relative */
+	ADDR_INX,	/* indexed indirect x */
+	ADDR_INY,	/* indirect indexed y */
+	ADDR_IND,	/* indirect */
+	ADDR_XXX	/* unknown */
 } addr_mode;
 
 typedef uint8_t (*opcode_func)(mos6502 *);
 
 typedef struct {
-	const char *name;
-	opcode_func *opcode;
+	const char *opcode;
+	opcode_func *func;
 	uint8_t cycles;
 	addr_mode mode;
 } instruction;
 
 instruction inst_table[0xFF + 1] = {
-	{ .name = "BRK", .opcode = NULL, .cycles = 7, .mode = ADDR_IMP }, /* 0x00 */
-	{ .name = "ORA", .opcode = NULL, .cycles = 6, .mode = ADDR_INX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "ORA", .opcode = NULL, .cycles = 3, .mode = ADDR_ZP },
-	{ .name = "ASL", .opcode = NULL, .cycles = 5, .mode = ADDR_ZP },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "PHP", .opcode = NULL, .cycles = 3, .mode = ADDR_IMP },
-	{ .name = "ORA", .opcode = NULL, .cycles = 2, .mode = ADDR_IMM },
-	{ .name = "ASL", .opcode = NULL, .cycles = 2, .mode = ADDR_ACC },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "ORA", .opcode = NULL, .cycles = 4, .mode = ADDR_ABS },
-	{ .name = "ASL", .opcode = NULL, .cycles = 6, .mode = ADDR_ABS },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "BRK", .func = NULL, .cycles = 7, .mode = ADDR_IMP }, /* 0x00 */
+	{ .opcode = "ORA", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "ORA", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "ASL", .func = NULL, .cycles = 5, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "PHP", .func = NULL, .cycles = 3, .mode = ADDR_IMP },
+	{ .opcode = "ORA", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "ASL", .func = NULL, .cycles = 2, .mode = ADDR_ACC },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "ORA", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "ASL", .func = NULL, .cycles = 6, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
 
-	{ .name = "BPL", .opcode = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0x10 */
-	{ .name = "ORA", .opcode = NULL, .cycles = 5, .mode = ADDR_INY },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "ORA", .opcode = NULL, .cycles = 4, .mode = ADDR_IZX },
-	{ .name = "ASL", .opcode = NULL, .cycles = 6, .mode = ADDR_IZX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "CLC", .opcode = NULL, .cycles = 2, .mode = ADDR_IMP },
-	{ .name = "ORA", .opcode = NULL, .cycles = 4, .mode = ADDR_IAY },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
-	{ .name = "ORA", .opcode = NULL, .cycles = 4, .mode = ADDR_IAX },
-	{ .name = "ASL", .opcode = NULL, .cycles = 7, .mode = ADDR_IAX },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "BPL", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0x10 */
+	{ .opcode = "ORA", .func = NULL, .cycles = 5, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "ORA", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "ASL", .func = NULL, .cycles = 6, .mode = ADDR_IZX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CLC", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "ORA", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "ORA", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "ASL", .func = NULL, .cycles = 7, .mode = ADDR_IAX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
 
-	{ .name = "JSR", .opcode = NULL, .cycles = 6, .mode = ABSOLUTE }, /* 0x20 */
-	{ .name = "AND", .opcode = NULL, .cycles = 6, .mode = INDEXED },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = UNKNOWN },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = UNKNOWN },
-	{ .name = "BIT", .opcode = NULL, .cycles = 3, .mode = ZERO_PAGE },
-	{ .name = "AND", .opcode = NULL, .cycles = 3, .mode = ZERO_PAGE },
-	{ .name = "ROL", .opcode = NULL, .cycles = 5, .mode = ZERO_PAGE },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = UNKNOWN },
-	{ .name = "PLP", .opcode = NULL, .cycles = 4, .mode = IMPLIED },
-	{ .name = "AND", .opcode = NULL, .cycles = 2, .mode = IMMEDIATE },
-	{ .name = "ROL", .opcode = NULL, .cycles = 2, .mode = ACCUMULATOR },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = UNKNOWN },
-	{ .name = "BIT", .opcode = NULL, .cycles = 4, .mode = ABSOLUTE },
-	{ .name = "AND", .opcode = NULL, .cycles = 4, .mode = ABSOLUTE },
-	{ .name = "ROL", .opcode = NULL, .cycles = 6, .mode = ABSOLUTE },
-	{ .name = "XXX", .opcode = NULL, .cycles = 0, .mode = UNKNOWN },
+	{ .opcode = "JSR", .func = NULL, .cycles = 6, .mode = ADDR_ABS }, /* 0x20 */
+	{ .opcode = "AND", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "BIT", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "AND", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "ROL", .func = NULL, .cycles = 5, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "PLP", .func = NULL, .cycles = 4, .mode = ADDR_IMP },
+	{ .opcode = "AND", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "ROL", .func = NULL, .cycles = 2, .mode = ADDR_ACC },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "BIT", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "AND", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "ROL", .func = NULL, .cycles = 6, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
 
-	{.name = "ADC", .opcode = NULL, .cycles = 0, .mode = NULL}, /* 0x30 */
-	{.name = "AND", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "ASL", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BCC", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BCS", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BEQ", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BIT", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BMI", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BNE", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BPL", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BRK", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BVC", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "BVS", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "CLC", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "CLD", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "CLI", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "CLV", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "CMP", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "CPX", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "CPY", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "DEC", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "DEX", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "DEY", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "EOR", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "INC", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "INX", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "INY", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "JMP", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "JSR", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "LDA", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "LDX", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "LDY", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "LSR", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "NOP", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "ORA", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "PHA", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "PHP", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "PLA", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "PLP", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "ROL", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "ROR", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "RTI", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "RTS", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "SBC", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "SEC", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "SED", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "SEI", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "STA", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "STX", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "STY", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "TAX", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "TAY", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "TSX", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "TXA", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "TXS", .opcode = NULL, .cycles = 0, .mode = NULL},
-	{.name = "TYA", .opcode = NULL, .cycles = 0, .mode = NULL}
+	{ .opcode = "BMI", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0x30 */
+	{ .opcode = "AND", .func = NULL, .cycles = 5, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "AND", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "ROL", .func = NULL, .cycles = 6, .mode = ADDR_IZX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "SEC", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "AND", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "AND", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "ROL", .func = NULL, .cycles = 7, .mode = ADDR_IAX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "RTI", .func = NULL, .cycles = 6, .mode = ADDR_IMP }, /* 0x40 */
+	{ .opcode = "EOR", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "EOR", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "LSR", .func = NULL, .cycles = 5, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "PHA", .func = NULL, .cycles = 3, .mode = ADDR_IMP },
+	{ .opcode = "EOR", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "LSR", .func = NULL, .cycles = 2, .mode = ADDR_ACC },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "JMP", .func = NULL, .cycles = 3, .mode = ADDR_ABS },
+	{ .opcode = "EOR", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "LSR", .func = NULL, .cycles = 6, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "BVC", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0x50 */
+	{ .opcode = "EOR", .func = NULL, .cycles = 5, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "EOR", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "LSR", .func = NULL, .cycles = 6, .mode = ADDR_IZX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CLI", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "EOR", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "EOR", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "LSR", .func = NULL, .cycles = 7, .mode = ADDR_IAX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "RTS", .func = NULL, .cycles = 6, .mode = ADDR_IMP }, /* 0x60 */
+	{ .opcode = "ADC", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "ADC", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "ROR", .func = NULL, .cycles = 5, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "PLA", .func = NULL, .cycles = 4, .mode = ADDR_IMP },
+	{ .opcode = "ADC", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "ROR", .func = NULL, .cycles = 2, .mode = ADDR_ACC },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "JMP", .func = NULL, .cycles = 5, .mode = ADDR_IND },
+	{ .opcode = "ADC", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "ROR", .func = NULL, .cycles = 6, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "BVS", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0x70 */
+	{ .opcode = "ADC", .func = NULL, .cycles = 5, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "ADC", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "ROR", .func = NULL, .cycles = 6, .mode = ADDR_IZX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "SEI", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "ADC", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "ADC", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "ROR", .func = NULL, .cycles = 7, .mode = ADDR_IAX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX }, /* 0x80 */
+	{ .opcode = "STA", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "STY", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "STA", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "STX", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "DEY", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "TXA", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "STY", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "STA", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "STX", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "BCC", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0x90 */
+	{ .opcode = "STA", .func = NULL, .cycles = 6, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "STY", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "STA", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "STX", .func = NULL, .cycles = 4, .mode = ADDR_IZY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "TYA", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "STA", .func = NULL, .cycles = 5, .mode = ADDR_IAY },
+	{ .opcode = "TXS", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "STA", .func = NULL, .cycles = 5, .mode = ADDR_IAX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "LDY", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0xA0 */
+	{ .opcode = "LDA", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "LDX", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "LDY", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "LDA", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "LDX", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "TAY", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "LDA", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "TAX", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "LDY", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "LDA", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "LDX", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "BSC", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0xB0 */
+	{ .opcode = "LDA", .func = NULL, .cycles = 5, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "LDY", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "LDA", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "LDX", .func = NULL, .cycles = 4, .mode = ADDR_IZY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CLV", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "LDA", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "TSX", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "LDY", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "LDA", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "LDX", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "CPY", .func = NULL, .cycles = 2, .mode = ADDR_IMM }, /* 0xC0 */
+	{ .opcode = "CMP", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CPY", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "CMP", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "DEC", .func = NULL, .cycles = 5, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "INY", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "CMP", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "DEX", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CPY", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "CMP", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "DEC", .func = NULL, .cycles = 6, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "BNE", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0xD0 */
+	{ .opcode = "CMP", .func = NULL, .cycles = 5, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CMP", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "DEC", .func = NULL, .cycles = 6, .mode = ADDR_IZX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CLD", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "CMP", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CMP", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "DEC", .func = NULL, .cycles = 7, .mode = ADDR_IAX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "CPX", .func = NULL, .cycles = 2, .mode = ADDR_IMM }, /* 0xE0 */
+	{ .opcode = "SBC", .func = NULL, .cycles = 6, .mode = ADDR_INX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CPX", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "SBC", .func = NULL, .cycles = 3, .mode = ADDR_ZP },
+	{ .opcode = "INC", .func = NULL, .cycles = 5, .mode = ADDR_ZP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX  },
+	{ .opcode = "INX", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "SBC", .func = NULL, .cycles = 2, .mode = ADDR_IMM },
+	{ .opcode = "NOP", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "CPX", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "SBC", .func = NULL, .cycles = 4, .mode = ADDR_ABS },
+	{ .opcode = "INC", .func = NULL, .cycles = 6, .mode = ADDR_ABS },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+
+	{ .opcode = "BEO", .func = NULL, .cycles = 2, .mode = ADDR_REL }, /* 0xF0 */
+	{ .opcode = "SBC", .func = NULL, .cycles = 5, .mode = ADDR_INY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "SBC", .func = NULL, .cycles = 4, .mode = ADDR_IZX },
+	{ .opcode = "INC", .func = NULL, .cycles = 6, .mode = ADDR_IZX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "SED", .func = NULL, .cycles = 2, .mode = ADDR_IMP },
+	{ .opcode = "SBC", .func = NULL, .cycles = 4, .mode = ADDR_IAY },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX },
+	{ .opcode = "SBC", .func = NULL, .cycles = 4, .mode = ADDR_IAX },
+	{ .opcode = "INC", .func = NULL, .cycles = 7, .mode = ADDR_IAX },
+	{ .opcode = "XXX", .func = NULL, .cycles = 0, .mode = ADDR_XXX }
 };
 
 
@@ -150,11 +314,11 @@ OP_LDA(mos6502 *cpu, uint8_t *mem, uint8_t cycles, addr_mode mode)
 	uint8_t zp_addr;
 	fprintf(stderr, "OP_LDA_%d\n", mode);
 
-	if (mode == IMMEDIATE) {
+	if (mode == ADDR_IMM) {
 		cpu->A = fetch_opcode(cpu, mem, cycles);
 	}
 
-	if (mode == ZERO_PAGE) {
+	if (mode == ADDR_ZP) {
 		zp_addr = fetch_opcode(cpu, mem, cycles);
 		cpu->A = read_byte(mem, zp_addr, cycles);
 	}
@@ -219,10 +383,10 @@ execute(mos6502 *cpu, uint8_t *mem, uint8_t cycles)
 		switch (opcode) {
 			/* TODO arrange opcodes somehow */
 			case 0xA9: /* INS_LDA_IM */
-				OP_LDA(cpu, mem, cycles, IMMEDIATE);
+				OP_LDA(cpu, mem, cycles, ADDR_IMM);
 				break;
 			case 0xA5: /* INS_LDA_ZP */
-				OP_LDA(cpu, mem, cycles, ZERO_PAGE);
+				OP_LDA(cpu, mem, cycles, ADDR_ZP);
 				break;
 			default:
 				fprintf(stderr, "ERROR: UNKNOWN OPCODE!\n");
