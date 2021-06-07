@@ -1,5 +1,4 @@
-CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3
-#-Werror
+CFLAGS = -Wall -Werror -Wextra -std=c99 -pedantic -g3
 
 all: options cnes
 
