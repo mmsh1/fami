@@ -3,29 +3,30 @@
 
 #include <stdint.h>
 
-#define MASK_CARRY              0x01
-#define MASK_ZERO               0x02
-#define MASK_INTERRUPT_DISABLE  0x04
-#define MASK_DECIMAL            0x08
-
-#define MASK_BFLAG              0x10
-#define MASK_UNUSED             0x20
-#define MASK_OVERFLOW           0x40
-#define MASK_NEGATIVE           0x80
+struct bus;
 
 typedef struct {
 	uint8_t A;      /* accumulator */
 	uint8_t X, Y;   /* index */
 	uint8_t SP;     /* stack pointer */
 	uint8_t P;      /* flag register */
-
+	uint8_t nmi;    /* non-maskable interrupt */
+	uint8_t irq;    /* interrupt request */
 	uint16_t PC;    /* program counter */
-} mos6502;
 
-uint8_t get_flag(mos6502 *, uint8_t);
-void cpu_init(mos6502 *);
-void cpu_reset(mos6502 *);
-void execute(mos6502 *, uint8_t *, uint8_t);
-void set_flag(mos6502 *, uint8_t, uint8_t);
+	uint32_t remaining_cycles;
+	struct bus *bus;
+} r2A03;
+
+void cpu_exec(r2A03 *, uint8_t);
+void cpu_reset(r2A03 *);
+void cpu_tick(r2A03 *);
+
+uint8_t cpu_getflag(r2A03 *, uint8_t);
+
+/* TODO do we need make theese function public? */
+void cpu_setflag(r2A03 *, uint8_t, uint8_t);
+void cpu_setirq(r2A03 *, uint8_t);
+void cpu_setnmi(r2A03 *, uint8_t);
 
 #endif /* NES_CPU_H */

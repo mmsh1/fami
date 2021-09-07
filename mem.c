@@ -1,9 +1,7 @@
-#include <stdio.h>	/* TODO remove */
 #include <string.h>	/* memset */
 
+#include "bus.h"
 #include "mem.h"
-
-/*uint8_t RAM[RAM_SIZE];*/
 
 void
 mem_reset(uint8_t *mem)
