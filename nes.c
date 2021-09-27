@@ -11,10 +11,12 @@ typedef struct {
 	uint8_t ram[RAM_SIZE];
 } nes;
 
+static double fps_ntsc = 60.0988;
+
 static void
 nes_loadrom(const char *path)
 {
-	
+	/* fread */
 }
 
 static void
@@ -28,8 +30,11 @@ nes_tick(nes *n)
 }
 
 static void
-nes_emulatecycle(nes *n)
+nes_run(nes *n)
 {
+	double frame_length = 1000 / fps_ntsc;
+
+
 	cpu_exec(&n->cpu, 15);
 }
 

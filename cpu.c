@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "bus.h"
 #include "cpu.h"
 
 #define MASK_CARRY              0x01
@@ -734,7 +735,7 @@ static uint8_t
 read8(r2A03 *cpu, uint16_t address)
 {
 	cpu_tick(cpu);
-	return bus_ram_read(address);
+	return bus_ram_read(cpu->bus, address);
 }
 
 static uint16_t
@@ -748,7 +749,7 @@ cpu_exec(r2A03 *cpu, uint8_t cycles)
 {
 	uint8_t opcode;
 
-	cpu->remaining_cycles += TCPF;
+	cpu->total_cycles += TCPF;
 
 	while (cycles > 0) {
 
@@ -788,5 +789,5 @@ cpu_reset(r2A03 *cpu)
 void
 cpu_tick(r2A03 *cpu)
 {
-	cpu->remaining_cycles--;
+	cpu->total_cycles--;
 }

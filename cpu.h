@@ -14,11 +14,12 @@ typedef struct {
 	uint8_t irq;    /* interrupt request */
 	uint16_t PC;    /* program counter */
 
-	uint32_t remaining_cycles;
+	uint32_t total_cycles;
+	uint32_t stall_cycles;
 	struct bus *bus;
 } r2A03;
 
-void cpu_exec(r2A03 *, uint8_t);
+/* void cpu_exec(r2A03 *, uint8_t); */
 void cpu_reset(r2A03 *);
 void cpu_tick(r2A03 *);
 
