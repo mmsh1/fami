@@ -13,10 +13,30 @@ typedef struct {
 
 static double fps_ntsc = 60.0988;
 
-static void
-nes_loadrom(const char *path)
+static int
+nes_loadrom(nes *n, const char *path)
 {
-	/* fread */
+	FILE *rom = NULL;
+	uint64_t readed;
+	int64_t size;
+
+	rom = fopen(path, "r");
+	if (rom == NULL) {
+		fprintf(stderr, "ROM NOT OPENED!\n");
+		return -1; /* TODO rewrite */
+	}
+
+	/* NOTE now we believe that rom size will fit in our buffer */
+	/* TODO rewrite it! */
+	fseek(rom, 0, SEEK_END);
+	size = ftell(rom);
+	fseek(rom, 0, SEEK_SET);
+
+	readed = fread(&n->ram[0x8000], size, 1, rom);
+
+	fclose(rom);
+
+	return 0;
 }
 
 static void
@@ -24,6 +44,7 @@ nes_tick(nes *n)
 {
 	/* bus_apu_tick(&n->bus); */
 	bus_cpu_tick(&n->bus);
+
 	bus_ppu_tick(&n->bus);
 	bus_ppu_tick(&n->bus);
 	bus_ppu_tick(&n->bus);
@@ -33,9 +54,9 @@ static void
 nes_run(nes *n)
 {
 	double frame_length = 1000 / fps_ntsc;
+	/*(void)frame_length;*/
 
-
-	cpu_exec(&n->cpu, 15);
+	nes_tick(n);
 }
 
 static void
@@ -51,39 +72,30 @@ main(int argc, char **argv)
 {
 	nes n;
 	char *filename = NULL;
-	/* FILE *rom = NULL; */
 
-	if (argc != 2) {
-		fprintf(stderr, "ERROR: WRONG ARGUMENTS!\n"); /* TODO print usage */
+	/*if (argc != 2) {
+		fprintf(stderr, "ERROR: WRONG ARGUMENTS!\n");
 		exit(EXIT_FAILURE);
 	}
 
-	filename = argv[1];
+	filename = argv[1];*/
 
 	nes_init(&n);
-	/*nes_loadrom(filename);*/
+	/* nes_loadrom(&n, filename); */
 
-	/*
-	rom = fopen(filename, "r");
-	if (rom == NULL) {
-		fprintf(stderr, "ERROR: ROM %s NOT OPENED!\n", filename);
-		exit(EXIT_FAILURE);
-	}
-	*/
-	/* for (int i = 0; i < 0xFFFF; i++) ram[i] = 0xA9; */
+	n.ram[0xFFFC] = 0xA9;
+	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFC], 0xFFFC);
+	n.ram[0xFFFD] = 0x88;
+	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFD], 0xFFFD);
+	n.ram[0xFFFE] = 0xE0;
+	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFE], 0xFFFE);
+	n.ram[0xFFFF] = 0xF8;
+	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFF], 0xFFFF);
 
-	/*
-	ram[0xFFFC] = 0xA9;
-	fprintf(stderr, "PLACED IN %X\n", 0xFFFC);
-	ram[0xFFFD] = 0x88;
-	fprintf(stderr, "PLACED IN %X\n", 0xFFFD);
-	ram[0xFFFE] = 0xE0;
-	fprintf(stderr, "PLACED IN %X\n", 0xFFFE);
-	ram[0xFFFF] = 0xF8;
-	fprintf(stderr, "PLACED IN %X\n", 0xFFFF);
-	*/
-
-	/* cpu_exec(&cpu, 15); */
+	nes_run(&n);
+	nes_run(&n);
+	nes_run(&n);
+	nes_run(&n);
 
 	return 0;
 }

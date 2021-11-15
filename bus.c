@@ -5,7 +5,9 @@
 void
 bus_cpu_reset(bus *b, r2A03 *c)
 {
+	cpu_reset(c);
 	b->cpu = c;
+	c->bus = b;
 }
 
 void
@@ -17,7 +19,9 @@ bus_cpu_tick(bus *b)
 void
 bus_ppu_reset(bus *b, r2C02 *p)
 {
+	/* ppu_reset(p); */
 	b->ppu = p;
+	/* p->bus = b */
 }
 
 void
@@ -29,6 +33,7 @@ bus_ppu_tick(bus *b)
 void
 bus_ram_reset(bus *b, uint8_t *r)
 {
+	mem_reset(r);
 	b->ram = r;
 }
 

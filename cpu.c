@@ -14,8 +14,8 @@
 
 #define TCPF 29781 /* total cycles per frame */
 
-typedef uint8_t (*opcode_func)(r2A03 *);
-typedef uint16_t (*addr_mode)(void);
+typedef void (*opcode_func)(r2A03 *);
+typedef void (*addr_mode)(r2A03 *);
 
 typedef struct {
 	uint8_t idx;
@@ -25,91 +25,94 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
-static uint8_t read8(r2A03 *, uint16_t);
-static uint16_t read16(r2A03 *, uint16_t);
+static uint8_t read8(r2A03 *);
+static uint8_t read8_indirect(r2A03 *, uint16_t);
+static uint16_t read16(r2A03 *);
+static uint16_t read16_indirect(r2A03 *, uint16_t);
+static void write8(r2A03 *, uint8_t);
 
-static uint16_t ADDR_ACC(void); /* accumulator */
-static uint16_t ADDR_IMM(void); /* immediate */
-static uint16_t ADDR_ABS(void); /* absolute */
-static uint16_t ADDR_ZP(void);  /* zero page */
-static uint16_t ADDR_IZX(void); /* indexed zero page x */
-static uint16_t ADDR_IZY(void); /* indexed zero page y */
-static uint16_t ADDR_IAX(void); /* indexed absolute x */
-static uint16_t ADDR_IAY(void); /* indexed absolute y */
-static uint16_t ADDR_IMP(void); /* implied */
-static uint16_t ADDR_REL(void); /* relative */
-static uint16_t ADDR_INX(void); /* indexed indirect x */
-static uint16_t ADDR_INY(void); /* indirect indexed y */
-static uint16_t ADDR_IND(void); /* indirect */
-static uint16_t ADDR_ILL(void); /* illegal */
+static void ADDR_ACC(r2A03 *); /* accumulator */
+static void ADDR_IMM(r2A03 *); /* immediate */
+static void ADDR_ABS(r2A03 *); /* absolute */
+static void ADDR_ZPG(r2A03 *); /* zero page */
+static void ADDR_IZX(r2A03 *); /* indexed zero page x */
+static void ADDR_IZY(r2A03 *); /* indexed zero page y */
+static void ADDR_IAX(r2A03 *); /* indexed absolute x */
+static void ADDR_IAY(r2A03 *); /* indexed absolute y */
+static void ADDR_IMP(r2A03 *); /* implied */
+static void ADDR_REL(r2A03 *); /* relative */
+static void ADDR_INX(r2A03 *); /* indexed indirect x */
+static void ADDR_INY(r2A03 *); /* indirect indexed y */
+static void ADDR_IND(r2A03 *); /* indirect */
+static void ADDR_ILL(r2A03 *); /* illegal */
 
-static uint8_t OP_ADC(r2A03 *);
-static uint8_t OP_AND(r2A03 *);
-static uint8_t OP_ASL(r2A03 *);
-static uint8_t OP_BCC(r2A03 *);
-static uint8_t OP_BCS(r2A03 *);
-static uint8_t OP_BEQ(r2A03 *);
-static uint8_t OP_BIT(r2A03 *);
-static uint8_t OP_BMI(r2A03 *);
-static uint8_t OP_BNE(r2A03 *);
-static uint8_t OP_BPL(r2A03 *);
-static uint8_t OP_BRK(r2A03 *);
-static uint8_t OP_BVC(r2A03 *);
-static uint8_t OP_BVS(r2A03 *);
-static uint8_t OP_CLC(r2A03 *);
-static uint8_t OP_CLD(r2A03 *);
-static uint8_t OP_CLI(r2A03 *);
-static uint8_t OP_CLV(r2A03 *);
-static uint8_t OP_CMP(r2A03 *);
-static uint8_t OP_CPX(r2A03 *);
-static uint8_t OP_CPY(r2A03 *);
-static uint8_t OP_DEC(r2A03 *);
-static uint8_t OP_DEX(r2A03 *);
-static uint8_t OP_DEY(r2A03 *);
-static uint8_t OP_EOR(r2A03 *);
-static uint8_t OP_INC(r2A03 *);
-static uint8_t OP_INX(r2A03 *);
-static uint8_t OP_INY(r2A03 *);
-static uint8_t OP_JMP(r2A03 *);
-static uint8_t OP_JSR(r2A03 *);
-static uint8_t OP_LDA(r2A03 *);
-static uint8_t OP_LDX(r2A03 *);
-static uint8_t OP_LDY(r2A03 *);
-static uint8_t OP_LSR(r2A03 *);
-static uint8_t OP_NOP(r2A03 *);
-static uint8_t OP_ORA(r2A03 *);
-static uint8_t OP_PHA(r2A03 *);
-static uint8_t OP_PHP(r2A03 *);
-static uint8_t OP_PLA(r2A03 *);
-static uint8_t OP_PLP(r2A03 *);
-static uint8_t OP_ROL(r2A03 *);
-static uint8_t OP_ROR(r2A03 *);
-static uint8_t OP_RTI(r2A03 *);
-static uint8_t OP_RTS(r2A03 *);
-static uint8_t OP_SBC(r2A03 *);
-static uint8_t OP_SEC(r2A03 *);
-static uint8_t OP_SED(r2A03 *);
-static uint8_t OP_SEI(r2A03 *);
-static uint8_t OP_STA(r2A03 *);
-static uint8_t OP_STX(r2A03 *);
-static uint8_t OP_STY(r2A03 *);
-static uint8_t OP_TAX(r2A03 *);
-static uint8_t OP_TAY(r2A03 *);
-static uint8_t OP_TSX(r2A03 *);
-static uint8_t OP_TXA(r2A03 *);
-static uint8_t OP_TXS(r2A03 *);
-static uint8_t OP_TYA(r2A03 *);
+static void OP_ADC(r2A03 *);
+static void OP_AND(r2A03 *);
+static void OP_ASL(r2A03 *);
+static void OP_BCC(r2A03 *);
+static void OP_BCS(r2A03 *);
+static void OP_BEQ(r2A03 *);
+static void OP_BIT(r2A03 *);
+static void OP_BMI(r2A03 *);
+static void OP_BNE(r2A03 *);
+static void OP_BPL(r2A03 *);
+static void OP_BRK(r2A03 *);
+static void OP_BVC(r2A03 *);
+static void OP_BVS(r2A03 *);
+static void OP_CLC(r2A03 *);
+static void OP_CLD(r2A03 *);
+static void OP_CLI(r2A03 *);
+static void OP_CLV(r2A03 *);
+static void OP_CMP(r2A03 *);
+static void OP_CPX(r2A03 *);
+static void OP_CPY(r2A03 *);
+static void OP_DEC(r2A03 *);
+static void OP_DEX(r2A03 *);
+static void OP_DEY(r2A03 *);
+static void OP_EOR(r2A03 *);
+static void OP_INC(r2A03 *);
+static void OP_INX(r2A03 *);
+static void OP_INY(r2A03 *);
+static void OP_JMP(r2A03 *);
+static void OP_JSR(r2A03 *);
+static void OP_LDA(r2A03 *);
+static void OP_LDX(r2A03 *);
+static void OP_LDY(r2A03 *);
+static void OP_LSR(r2A03 *);
+static void OP_NOP(r2A03 *);
+static void OP_ORA(r2A03 *);
+static void OP_PHA(r2A03 *);
+static void OP_PHP(r2A03 *);
+static void OP_PLA(r2A03 *);
+static void OP_PLP(r2A03 *);
+static void OP_ROL(r2A03 *);
+static void OP_ROR(r2A03 *);
+static void OP_RTI(r2A03 *);
+static void OP_RTS(r2A03 *);
+static void OP_SBC(r2A03 *);
+static void OP_SEC(r2A03 *);
+static void OP_SED(r2A03 *);
+static void OP_SEI(r2A03 *);
+static void OP_STA(r2A03 *);
+static void OP_STX(r2A03 *);
+static void OP_STY(r2A03 *);
+static void OP_TAX(r2A03 *);
+static void OP_TAY(r2A03 *);
+static void OP_TSX(r2A03 *);
+static void OP_TXA(r2A03 *);
+static void OP_TXS(r2A03 *);
+static void OP_TYA(r2A03 *);
 
-static uint8_t OP_ILL(r2A03 *); /* illegal */
+static void OP_ILL(r2A03 *); /* illegal */
 
-instruction inst_table[0xFF + 1] = {
+instruction optable[0xFF + 1] = {
 	{ .idx = 0x00, .name = "BRK", .func = OP_BRK, .cycles = 7, .mode = ADDR_IMP },
 	{ .idx = 0x01, .name = "ORA", .func = OP_ORA, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0x02, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x03, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x04, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0x05, .name = "ORA", .func = OP_ORA, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0x06, .name = "ASL", .func = OP_ASL, .cycles = 5, .mode = ADDR_ZP },
+	{ .idx = 0x05, .name = "ORA", .func = OP_ORA, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0x06, .name = "ASL", .func = OP_ASL, .cycles = 5, .mode = ADDR_ZPG },
 	{ .idx = 0x07, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x08, .name = "PHP", .func = OP_PHP, .cycles = 3, .mode = ADDR_IMP },
 	{ .idx = 0x09, .name = "ORA", .func = OP_ORA, .cycles = 2, .mode = ADDR_IMM },
@@ -141,9 +144,9 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0x21, .name = "AND", .func = OP_AND, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0x22, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x23, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0x24, .name = "BIT", .func = OP_BIT, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0x25, .name = "AND", .func = OP_AND, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0x26, .name = "ROL", .func = OP_ROL, .cycles = 5, .mode = ADDR_ZP },
+	{ .idx = 0x24, .name = "BIT", .func = OP_BIT, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0x25, .name = "AND", .func = OP_AND, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0x26, .name = "ROL", .func = OP_ROL, .cycles = 5, .mode = ADDR_ZPG },
 	{ .idx = 0x27, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x28, .name = "PLP", .func = OP_PLP, .cycles = 4, .mode = ADDR_IMP },
 	{ .idx = 0x29, .name = "AND", .func = OP_AND, .cycles = 2, .mode = ADDR_IMM },
@@ -176,8 +179,8 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0x42, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x43, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x44, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0x45, .name = "EOR", .func = OP_EOR, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0x46, .name = "LSR", .func = OP_LSR, .cycles = 5, .mode = ADDR_ZP },
+	{ .idx = 0x45, .name = "EOR", .func = OP_EOR, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0x46, .name = "LSR", .func = OP_LSR, .cycles = 5, .mode = ADDR_ZPG },
 	{ .idx = 0x47, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x48, .name = "PHA", .func = OP_PHA, .cycles = 3, .mode = ADDR_IMP },
 	{ .idx = 0x49, .name = "EOR", .func = OP_EOR, .cycles = 2, .mode = ADDR_IMM },
@@ -210,8 +213,8 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0x62, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x63, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x64, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0x65, .name = "ADC", .func = OP_ADC, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0x66, .name = "ROR", .func = OP_ROR, .cycles = 5, .mode = ADDR_ZP },
+	{ .idx = 0x65, .name = "ADC", .func = OP_ADC, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0x66, .name = "ROR", .func = OP_ROR, .cycles = 5, .mode = ADDR_ZPG },
 	{ .idx = 0x67, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x68, .name = "PLA", .func = OP_PLA, .cycles = 4, .mode = ADDR_IMP },
 	{ .idx = 0x69, .name = "ADC", .func = OP_ADC, .cycles = 2, .mode = ADDR_IMM },
@@ -243,9 +246,9 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0x81, .name = "STA", .func = OP_STA, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0x82, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x83, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0x84, .name = "STY", .func = OP_STY, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0x85, .name = "STA", .func = OP_STA, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0x86, .name = "STX", .func = OP_STX, .cycles = 3, .mode = ADDR_ZP },
+	{ .idx = 0x84, .name = "STY", .func = OP_STY, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0x85, .name = "STA", .func = OP_STA, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0x86, .name = "STX", .func = OP_STX, .cycles = 3, .mode = ADDR_ZPG },
 	{ .idx = 0x87, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x88, .name = "DEY", .func = OP_DEY, .cycles = 2, .mode = ADDR_IMP },
 	{ .idx = 0x89, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
@@ -277,9 +280,9 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0xA1, .name = "LDA", .func = OP_LDA, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0xA2, .name = "LDX", .func = OP_LDX, .cycles = 2, .mode = ADDR_IMM },
 	{ .idx = 0xA3, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0xA4, .name = "LDY", .func = OP_LDY, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0xA5, .name = "LDA", .func = OP_LDA, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0xA6, .name = "LDX", .func = OP_LDX, .cycles = 3, .mode = ADDR_ZP },
+	{ .idx = 0xA4, .name = "LDY", .func = OP_LDY, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0xA5, .name = "LDA", .func = OP_LDA, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0xA6, .name = "LDX", .func = OP_LDX, .cycles = 3, .mode = ADDR_ZPG },
 	{ .idx = 0xA7, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0xA8, .name = "TAY", .func = OP_TAY, .cycles = 2, .mode = ADDR_IMP },
 	{ .idx = 0xA9, .name = "LDA", .func = OP_LDA, .cycles = 2, .mode = ADDR_IMM },
@@ -311,9 +314,9 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0xC1, .name = "CMP", .func = OP_CMP, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0xC2, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0xC3, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0xC4, .name = "CPY", .func = OP_CPY, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0xC5, .name = "CMP", .func = OP_CMP, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0xC6, .name = "DEC", .func = OP_DEC, .cycles = 5, .mode = ADDR_ZP },
+	{ .idx = 0xC4, .name = "CPY", .func = OP_CPY, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0xC5, .name = "CMP", .func = OP_CMP, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0xC6, .name = "DEC", .func = OP_DEC, .cycles = 5, .mode = ADDR_ZPG },
 	{ .idx = 0xC7, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0xC8, .name = "INY", .func = OP_INY, .cycles = 2, .mode = ADDR_IMP },
 	{ .idx = 0xC9, .name = "CMP", .func = OP_CMP, .cycles = 2, .mode = ADDR_IMM },
@@ -345,10 +348,10 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0xE1, .name = "SBC", .func = OP_SBC, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0xE2, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0xE3, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
-	{ .idx = 0xE4, .name = "CPX", .func = OP_CPX, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0xE5, .name = "SBC", .func = OP_SBC, .cycles = 3, .mode = ADDR_ZP },
-	{ .idx = 0xE6, .name = "INC", .func = OP_INC, .cycles = 5, .mode = ADDR_ZP },
-	{ .idx = 0xE7, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL  },
+	{ .idx = 0xE4, .name = "CPX", .func = OP_CPX, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0xE5, .name = "SBC", .func = OP_SBC, .cycles = 3, .mode = ADDR_ZPG },
+	{ .idx = 0xE6, .name = "INC", .func = OP_INC, .cycles = 5, .mode = ADDR_ZPG },
+	{ .idx = 0xE7, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0xE8, .name = "INX", .func = OP_INX, .cycles = 2, .mode = ADDR_IMP },
 	{ .idx = 0xE9, .name = "SBC", .func = OP_SBC, .cycles = 2, .mode = ADDR_IMM },
 	{ .idx = 0xEA, .name = "NOP", .func = OP_NOP, .cycles = 2, .mode = ADDR_IMP },
@@ -376,403 +379,485 @@ instruction inst_table[0xFF + 1] = {
 	{ .idx = 0xFF, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL }
 };
 
-static uint16_t
-ADDR_ACC(void)
+static void
+ADDR_ACC(r2A03 *cpu)
+{
+	return;
+}
+
+static void
+ADDR_IMM(r2A03 *cpu)
+{
+	cpu->addr = cpu->PC++;
+}
+
+static void
+ADDR_ABS(r2A03 *cpu)
+{
+	cpu->addr = read16(cpu);
+}
+
+static void
+ADDR_ZPG(r2A03 *cpu)
+{
+	uint16_t lo = 0;
+	cpu->addr = read8(cpu) | lo;
+}
+
+static void
+ADDR_IZX(r2A03 *cpu)
+{
+	uint16_t lo = 0;
+	cpu->addr = read8(cpu) + cpu->X | lo;
+}
+
+static void
+ADDR_IZY(r2A03 *cpu)
+{
+	uint16_t lo = 0;
+	cpu->addr = read8(cpu) + cpu->Y | lo;
+}
+
+static void
+ADDR_IAX(r2A03 *cpu)
+{
+	cpu->addr = read16(cpu) + cpu->X;
+}
+
+static void
+ADDR_IAY(r2A03 *cpu)
+{
+	cpu->addr = read16(cpu) + cpu->Y;
+}
+
+static void
+ADDR_IMP(r2A03 *cpu)
+{
+	return;
+}
+
+static void
+ADDR_REL(r2A03 *cpu)
+{
+	int8_t offset = (int8_t)read8(cpu);
+	cpu->addr = cpu->PC + offset;
+}
+
+static void
+ADDR_INX(r2A03 *cpu)
 {
 }
 
-static uint16_t
-ADDR_IMM(void)
+static void
+ADDR_INY(r2A03 *cpu)
 {
+
 }
 
-static uint16_t
-ADDR_ABS(void)
+static void
+ADDR_IND(r2A03 *cpu)
 {
+	uint16_t location = read16(cpu);
+	cpu->addr = read16_indirect(cpu, location);
 }
 
-static uint16_t
-ADDR_ZP(void)
+static void
+ADDR_ILL(r2A03 *cpu)
 {
+	fprintf(stderr, "illegal address mode!\n");
+	return;
 }
 
-static uint16_t
-ADDR_IZX(void)
-{
-}
-
-static uint16_t
-ADDR_IZY(void)
-{
-}
-
-static uint16_t
-ADDR_IAX(void)
-{
-}
-
-static uint16_t
-ADDR_IAY(void)
-{
-}
-
-static uint16_t
-ADDR_IMP(void)
-{
-}
-
-static uint16_t
-ADDR_REL(void)
-{
-}
-
-static uint16_t
-ADDR_INX(void)
-{
-}
-
-static uint16_t
-ADDR_INY(void)
-{
-}
-
-static uint16_t
-ADDR_IND(void)
-{
-}
-
-static uint16_t
-ADDR_ILL(void)
-{
-}
-
-static uint8_t
+static void
 OP_ADC(r2A03 *cpu)
 {
+
 }
 
-static uint8_t
+static void
 OP_AND(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_ASL(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BCC(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BCS(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BEQ(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BIT(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BMI(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BNE(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BPL(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BRK(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BVC(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_BVS(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_CLC(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_CLD(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_CLI(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_CLV(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_CMP(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_CPX(r2A03 *cpu)
 {
+	/* compare x and mem */
 }
 
-static uint8_t
+static void
 OP_CPY(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_DEC(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_DEX(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_DEY(r2A03 *cpu)
 {
+	/* decrement Y register */
+	cpu->Y--;
+	/* TODO create function for update ZN flags */
+	if (cpu->Y == 0)
+		cpu->P |= MASK_ZERO;
+
+	if ((cpu->Y & (1 >> 7)) != 0)
+		cpu->P |= MASK_NEGATIVE;
+
 }
 
-static uint8_t
+static void
 OP_EOR(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_INC(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_INX(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_INY(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_JMP(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_JSR(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_LDA(r2A03 *cpu)
 {
+	/* load memory to acc */
+	cpu->A = cpu->addr;
+	/* TODO create function for update ZN flags */
+	if (cpu->A == 0)
+		cpu->P |= MASK_ZERO;
+
+	if ((cpu->A & (1 >> 7)) != 0)
+		cpu->P |= MASK_NEGATIVE;
 }
 
-static uint8_t
+static void
 OP_LDX(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_LDY(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_LSR(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_NOP(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_ORA(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_PHA(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_PHP(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_PLA(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_PLP(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_ROL(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_ROR(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_RTI(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_RTS(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_SBC(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_SEC(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_SED(r2A03 *cpu)
 {
+	/* set decimal flag */
 }
 
-static uint8_t
+static void
 OP_SEI(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_STA(r2A03 *cpu)
 {
+	write8(cpu, cpu->A);
 }
 
-static uint8_t
+static void
 OP_STX(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_STY(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_TAX(r2A03 *cpu)
 {
+	/* copy acc to x */
+	cpu->X = cpu->A;
+	/* TODO create function for update ZN flags */
+	if (cpu->X == 0)
+		cpu->P |= MASK_ZERO;
+
+	if((cpu->X & (1 >> 7)) != 0)
+		cpu->P |= MASK_NEGATIVE;
 }
 
-static uint8_t
+static void
 OP_TAY(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_TSX(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_TXA(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_TXS(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_TYA(r2A03 *cpu)
 {
 }
 
-static uint8_t
+static void
 OP_ILL(r2A03 *cpu)
 {
+	fprintf(stderr, "illegal opcode!\n"); /* TODO remove */
+	return;
 }
 
 static uint8_t
-read8(r2A03 *cpu, uint16_t address)
+read8(r2A03 *cpu)
 {
-	cpu_tick(cpu);
-	return bus_ram_read(cpu->bus, address);
+	return bus_ram_read(cpu->bus, cpu->PC++);
+}
+
+static uint8_t
+read8_indirect(r2A03 *cpu, uint16_t location)
+{
+	return bus_ram_read(cpu->bus, location);
 }
 
 static uint16_t
-read16(r2A03 *cpu, uint16_t address)
+read16(r2A03 *cpu)
 {
-	return read8(cpu, address) | (read8(cpu, address + 1) << 8);
+	uint8_t lo = read8(cpu);
+	uint8_t hi = read8(cpu);
+	return (hi << 8) | lo;
+}
+
+static uint16_t
+read16_indirect(r2A03 *cpu, uint16_t addr)
+{
+	/* TODO handle edge case:
+	* uint8_t hi = read8_indirect(cpu, addr & 0xFF00) | ((addr + 1) & 0x00FF);
+	* https://www.reddit.com/r/EmuDev/comments/fi29ah/6502_jump_indirect_error/ */
+	uint8_t lo = read8_indirect(cpu, addr);
+	uint8_t hi = read8_indirect(cpu, addr + 1);
+	return (hi << 8) | lo;
+}
+
+static void
+write8(r2A03 *cpu, uint8_t data)
+{
+	bus_ram_write(cpu->bus, cpu->addr, data);
+}
+
+/* TODO debug stuff */
+static void
+print_internals(r2A03 *cpu)
+{
+	fprintf(stderr, "INFO: CURRENT PC: %u\n", cpu->PC);
+	fprintf(stderr, "INFO: CURRENT TOTAL: %lu\n", cpu->total);
+	fprintf(stderr, "INFO: CURRENT STALL: %lu\n", cpu->stall);
 }
 
 void
-cpu_exec(r2A03 *cpu, uint8_t cycles)
+cpu_tick(r2A03 *cpu)
 {
 	uint8_t opcode;
+	uint64_t cycles;
 
-	cpu->total_cycles += TCPF;
-
-	while (cycles > 0) {
-
-		opcode = read8(cpu, cpu->PC);
-		fprintf(stderr, "idx: %d, ", inst_table[opcode].idx);	/* TODO remove later */
-		fprintf(stderr, "name: %s\n", inst_table[opcode].name);	/* TODO remove later */
-		cpu->PC++;
-
-		inst_table[opcode].mode();
-		inst_table[opcode].func(cpu);
+	if (cpu->stall > 0) {
+		fprintf(stderr, "return on stall\n"); /* TODO remove */
+		cpu->stall--;
+		return;
 	}
-}
 
-uint8_t
-cpu_getflag(r2A03 *cpu, uint8_t bit)
-{
-	return (cpu->P) & bit;
-}
+	cycles = cpu->total;
 
-void
-cpu_setflag(r2A03 *cpu, uint8_t bit, uint8_t val)
-{
-	(cpu->P) ^= (-val ^ cpu->P) & bit;
+	/* poll interrupts here */
+	/* if irq -> cpu_setirq */
+	/* if nmi -> cpu_setnmi */
+
+	fprintf(stderr, "cpu->PC: %d\n", cpu->PC);
+	opcode = read8(cpu);
+
+	fprintf(stderr, "idx: %d, ", optable[opcode].idx);	/* TODO remove later */
+	fprintf(stderr, "name: %s\n", optable[opcode].name);	/* TODO remove later */
+
+	cpu->total += optable[opcode].cycles;
+
+	optable[opcode].mode(cpu);
+	optable[opcode].func(cpu);
 }
 
 void
@@ -784,10 +869,6 @@ cpu_reset(r2A03 *cpu)
 	cpu->A = 0;
 	cpu->X = 0;
 	cpu->Y = 0;
-}
-
-void
-cpu_tick(r2A03 *cpu)
-{
-	cpu->total_cycles--;
+	cpu->stall = 0; /* TODO do we need it here? */
+	/* cpu_fetch_opcode */
 }
