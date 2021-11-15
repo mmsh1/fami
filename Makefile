@@ -1,22 +1,21 @@
-CFLAGS = -Wall -std=c99 -pedantic -g3
-#-Wextra
+CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3
 #-Werror
 
-all: options cnes
+all: options fami
 
 options:
-	@echo cnes build options:
+	@echo fami build options:
 	@echo "CFLAGS	= $(CFLAGS)"
 	@echo "CC	= $(CC)"
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-cnes: bus.o cpu.o mem.o nes.o ppu.o
+fami: bus.o cpu.o mem.o nes.o ppu.o
 	$(CC) -o $@ $^
 
 clean:
-	rm -f cnes
+	rm -f fami
 	rm -f *.o
 
 .PHONY: all options clean
