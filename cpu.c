@@ -34,16 +34,16 @@ static void write8(r2A03 *, uint8_t);
 static void ADDR_ACC(r2A03 *); /* accumulator */
 static void ADDR_IMM(r2A03 *); /* immediate */
 static void ADDR_ABS(r2A03 *); /* absolute */
+static void ADDR_IAX(r2A03 *); /* indexed absolute x */
+static void ADDR_IAY(r2A03 *); /* indexed absolute y */
 static void ADDR_ZPG(r2A03 *); /* zero page */
 static void ADDR_IZX(r2A03 *); /* indexed zero page x */
 static void ADDR_IZY(r2A03 *); /* indexed zero page y */
-static void ADDR_IAX(r2A03 *); /* indexed absolute x */
-static void ADDR_IAY(r2A03 *); /* indexed absolute y */
 static void ADDR_IMP(r2A03 *); /* implied */
 static void ADDR_REL(r2A03 *); /* relative */
+static void ADDR_IND(r2A03 *); /* indirect */
 static void ADDR_INX(r2A03 *); /* indexed indirect x */
 static void ADDR_INY(r2A03 *); /* indirect indexed y */
-static void ADDR_IND(r2A03 *); /* indirect */
 static void ADDR_ILL(r2A03 *); /* illegal */
 
 static void OP_ADC(r2A03 *);
@@ -446,6 +446,8 @@ ADDR_REL(r2A03 *cpu)
 static void
 ADDR_INX(r2A03 *cpu)
 {
+	int8_t location = read8(cpu);
+	cpu->addr = read16_indirect(cpu, (location + cpu->X) & 0x00FF);
 }
 
 static void
