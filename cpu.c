@@ -7,7 +7,7 @@
 #define MASK_ZERO               0x02
 #define MASK_INTERRUPT_DISABLE  0x04
 #define MASK_DECIMAL            0x08
-#define MASK_BFLAG              0x10
+#define MASK_BREAK              0x10
 #define MASK_UNUSED             0x20
 #define MASK_OVERFLOW           0x40
 #define MASK_NEGATIVE           0x80
@@ -30,20 +30,25 @@ static uint8_t read8_indirect(r2A03 *, uint16_t);
 static uint16_t read16(r2A03 *);
 static uint16_t read16_indirect(r2A03 *, uint16_t);
 static void write8(r2A03 *, uint8_t);
+/*static void setflag(r2A03 *, uint8_t, uint8_t);*/
+/*static void getflag(r2A03 *, uint8_t);*/
+/*static void setirq(r2A03 *, uint8_t);*/
+/*static void setnmi(r2A03 *, uint8_t);*/
 
-static void ADDR_ACC(r2A03 *); /* accumulator */
-static void ADDR_IMM(r2A03 *); /* immediate */
 static void ADDR_ABS(r2A03 *); /* absolute */
-static void ADDR_ZPG(r2A03 *); /* zero page */
-static void ADDR_IZX(r2A03 *); /* indexed zero page x */
-static void ADDR_IZY(r2A03 *); /* indexed zero page y */
+static void ADDR_ACC(r2A03 *); /* accumulator */
 static void ADDR_IAX(r2A03 *); /* indexed absolute x */
 static void ADDR_IAY(r2A03 *); /* indexed absolute y */
+static void ADDR_IMM(r2A03 *); /* immediate */
 static void ADDR_IMP(r2A03 *); /* implied */
-static void ADDR_REL(r2A03 *); /* relative */
+static void ADDR_IND(r2A03 *); /* indirect */
 static void ADDR_INX(r2A03 *); /* indexed indirect x */
 static void ADDR_INY(r2A03 *); /* indirect indexed y */
-static void ADDR_IND(r2A03 *); /* indirect */
+static void ADDR_IZX(r2A03 *); /* indexed zero page x */
+static void ADDR_IZY(r2A03 *); /* indexed zero page y */
+static void ADDR_REL(r2A03 *); /* relative */
+static void ADDR_ZPG(r2A03 *); /* zero page */
+
 static void ADDR_ILL(r2A03 *); /* illegal */
 
 static void OP_ADC(r2A03 *);
@@ -380,42 +385,15 @@ instruction optable[0xFF + 1] = {
 };
 
 static void
-ADDR_ACC(r2A03 *cpu)
-{
-	return;
-}
-
-static void
-ADDR_IMM(r2A03 *cpu)
-{
-	cpu->addr = cpu->PC++;
-}
-
-static void
 ADDR_ABS(r2A03 *cpu)
 {
 	cpu->addr = read16(cpu);
 }
 
 static void
-ADDR_ZPG(r2A03 *cpu)
+ADDR_ACC(r2A03 *cpu)
 {
-	uint16_t lo = 0;
-	cpu->addr = read8(cpu) | lo;
-}
-
-static void
-ADDR_IZX(r2A03 *cpu)
-{
-	uint16_t lo = 0;
-	cpu->addr = read8(cpu) + cpu->X | lo;
-}
-
-static void
-ADDR_IZY(r2A03 *cpu)
-{
-	uint16_t lo = 0;
-	cpu->addr = read8(cpu) + cpu->Y | lo;
+	return;
 }
 
 static void
@@ -431,9 +409,48 @@ ADDR_IAY(r2A03 *cpu)
 }
 
 static void
+ADDR_IMM(r2A03 *cpu)
+{
+	cpu->addr = cpu->PC++;
+}
+
+static void
 ADDR_IMP(r2A03 *cpu)
 {
 	return;
+}
+
+static void
+ADDR_IND(r2A03 *cpu)
+{
+	uint16_t location = read16(cpu);
+	cpu->addr = read16_indirect(cpu, location);
+}
+
+static void
+ADDR_INX(r2A03 *cpu)
+{
+	uint8_t location = read8(cpu);
+	cpu->addr = read16_indirect(cpu, location + cpu->X);
+}
+
+static void
+ADDR_INY(r2A03 *cpu)
+{
+	uint8_t location = read8(cpu);
+	cpu->addr = read16_indirect(cpu, location + (cpu->Y & 0x00FF));
+}
+
+static void
+ADDR_IZX(r2A03 *cpu)
+{
+	cpu->addr = read8(cpu) + cpu->X & 0x00FF;
+}
+
+static void
+ADDR_IZY(r2A03 *cpu)
+{
+	cpu->addr = read8(cpu) + cpu->Y & 0x00FF;
 }
 
 static void
@@ -444,21 +461,8 @@ ADDR_REL(r2A03 *cpu)
 }
 
 static void
-ADDR_INX(r2A03 *cpu)
-{
-}
-
-static void
-ADDR_INY(r2A03 *cpu)
-{
-
-}
-
-static void
-ADDR_IND(r2A03 *cpu)
-{
-	uint16_t location = read16(cpu);
-	cpu->addr = read16_indirect(cpu, location);
+ADDR_ZPG(r2A03 *cpu) {
+	cpu->addr = read8(cpu) | 0x0000;
 }
 
 static void
@@ -471,17 +475,21 @@ ADDR_ILL(r2A03 *cpu)
 static void
 OP_ADC(r2A03 *cpu)
 {
-
+	/* TODO add memory to accumulator with carry */
 }
 
 static void
 OP_AND(r2A03 *cpu)
 {
+	cpu->A &= read8(cpu);
+	/* TODO modify ZN flags */
 }
 
 static void
 OP_ASL(r2A03 *cpu)
 {
+
+	/* TODO modify CZN flags */
 }
 
 static void
@@ -552,17 +560,19 @@ OP_CLI(r2A03 *cpu)
 static void
 OP_CLV(r2A03 *cpu)
 {
+	/* TODO clear overflow flag */
 }
 
 static void
 OP_CMP(r2A03 *cpu)
 {
+	/* compare accumulator */
 }
 
 static void
 OP_CPX(r2A03 *cpu)
 {
-	/* compare x and mem */
+	/* TODO compare x and mem */
 }
 
 static void
@@ -578,6 +588,13 @@ OP_DEC(r2A03 *cpu)
 static void
 OP_DEX(r2A03 *cpu)
 {
+	cpu->X--;
+	/* TODO create function for update ZN flags */
+	if (cpu->X == 0)
+		cpu->P |= MASK_ZERO;
+
+	if ((cpu->X & (1 >> 7)) != 0)
+		cpu->P |= MASK_NEGATIVE;
 }
 
 static void
@@ -597,6 +614,7 @@ OP_DEY(r2A03 *cpu)
 static void
 OP_EOR(r2A03 *cpu)
 {
+	/* TODO XOR memory with accumulator */
 }
 
 static void
@@ -607,16 +625,21 @@ OP_INC(r2A03 *cpu)
 static void
 OP_INX(r2A03 *cpu)
 {
+	cpu->X++;
+	/* TODO check page crossing */
 }
 
 static void
 OP_INY(r2A03 *cpu)
 {
+	cpu->Y++;
+	/* TODO check page crossing */
 }
 
 static void
 OP_JMP(r2A03 *cpu)
 {
+	cpu->PC = cpu->addr;
 }
 
 static void
@@ -655,6 +678,7 @@ OP_LSR(r2A03 *cpu)
 static void
 OP_NOP(r2A03 *cpu)
 {
+	/* TODO check page crossing */
 }
 
 static void
@@ -822,13 +846,13 @@ write8(r2A03 *cpu, uint8_t data)
 }
 
 /* TODO debug stuff */
-static void
+/*static void
 print_internals(r2A03 *cpu)
 {
 	fprintf(stderr, "INFO: CURRENT PC: %u\n", cpu->PC);
 	fprintf(stderr, "INFO: CURRENT TOTAL: %lu\n", cpu->total);
 	fprintf(stderr, "INFO: CURRENT STALL: %lu\n", cpu->stall);
-}
+}*/
 
 void
 cpu_tick(r2A03 *cpu)

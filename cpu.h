@@ -23,10 +23,4 @@ typedef struct {
 void cpu_reset(r2A03 *);
 void cpu_tick(r2A03 *);
 
-/* TODO do we need make theese function public? */
-/* void cpu_setflag(r2A03 *, uint8_t, uint8_t); */
-/* void cpu_setirq(r2A03 *, uint8_t); */
-/* void cpu_setnmi(r2A03 *, uint8_t); */
-/* uint8_t cpu_getflag(r2A03 *, uint8_t); */
-
 #endif /* NES_CPU_H */
