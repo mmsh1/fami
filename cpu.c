@@ -30,8 +30,8 @@ static uint8_t read8_indirect(r2A03 *, uint16_t);
 static uint16_t read16(r2A03 *);
 static uint16_t read16_indirect(r2A03 *, uint16_t);
 static void write8(r2A03 *, uint8_t);
-/*static void setflag(r2A03 *, uint8_t, uint8_t);*/
-/*static void getflag(r2A03 *, uint8_t);*/
+static void setflag(r2A03 *, uint8_t);
+static void clearflag(r2A03 *, uint8_t);
 /*static void setirq(r2A03 *, uint8_t);*/
 /*static void setnmi(r2A03 *, uint8_t);*/
 
@@ -545,11 +545,13 @@ OP_BVS(r2A03 *cpu)
 static void
 OP_CLC(r2A03 *cpu)
 {
+	clearflag(cpu, MASK_CARRY);
 }
 
 static void
 OP_CLD(r2A03 *cpu)
 {
+	clearflag(cpu, MASK_DECIMAL);
 }
 
 static void
@@ -560,7 +562,7 @@ OP_CLI(r2A03 *cpu)
 static void
 OP_CLV(r2A03 *cpu)
 {
-	/* TODO clear overflow flag */
+	clearflag(cpu, MASK_OVERFLOW);
 }
 
 static void
@@ -843,6 +845,18 @@ static void
 write8(r2A03 *cpu, uint8_t data)
 {
 	bus_ram_write(cpu->bus, cpu->addr, data);
+}
+
+static void
+setflag(r2A03 *cpu, uint8_t mask)
+{
+	cpu->P |= mask;
+}
+
+static void
+clearflag(r2A03 *cpu, uint8_t mask)
+{
+	cpu->P &= ~mask;
 }
 
 /* TODO debug stuff */
