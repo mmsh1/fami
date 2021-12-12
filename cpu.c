@@ -25,13 +25,14 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
+static void setflag(r2A03 *, uint8_t, uint8_t);
+static void write8(r2A03 *, uint8_t);
+static uint8_t get8(r2A03 *, uint16_t);
+static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t read8(r2A03 *);
 static uint8_t read8_indirect(r2A03 *, uint16_t);
 static uint16_t read16(r2A03 *);
 static uint16_t read16_indirect(r2A03 *, uint16_t);
-static void write8(r2A03 *, uint8_t);
-static void setflag(r2A03 *, uint8_t);
-static void clearflag(r2A03 *, uint8_t);
 /*static void setirq(r2A03 *, uint8_t);*/
 /*static void setnmi(r2A03 *, uint8_t);*/
 
@@ -385,6 +386,65 @@ instruction optable[0xFF + 1] = {
 };
 
 static void
+setflag(r2A03 *cpu, uint8_t mask, uint8_t val)
+{
+	if (val) {
+		cpu->P |= mask;
+	} else {
+		cpu->P &= ~mask;
+	}
+}
+
+static void
+write8(r2A03 *cpu, uint8_t data)
+{
+	bus_ram_write(cpu->bus, cpu->addr, data);
+}
+
+static uint8_t
+get8(r2A03 *cpu, uint16_t addr)
+{
+	return bus_ram_read(cpu->bus, addr);
+}
+
+static uint8_t
+getflag(r2A03 *cpu, uint8_t mask)
+{
+	return cpu->P & mask;
+}
+
+static uint8_t
+read8(r2A03 *cpu)
+{
+	return get8(cpu, cpu->PC++);
+}
+
+static uint8_t
+read8_indirect(r2A03 *cpu, uint16_t location)
+{
+	return get8(cpu, location);
+}
+
+static uint16_t
+read16(r2A03 *cpu)
+{
+	uint8_t lo = read8(cpu);
+	uint8_t hi = read8(cpu);
+	return (hi << 8) | lo;
+}
+
+static uint16_t
+read16_indirect(r2A03 *cpu, uint16_t addr)
+{
+	/* TODO handle edge case:
+	* uint8_t hi = read8_indirect(cpu, addr & 0xFF00) | ((addr + 1) & 0x00FF);
+	* https://www.reddit.com/r/EmuDev/comments/fi29ah/6502_jump_indirect_error/ */
+	uint8_t lo = read8_indirect(cpu, addr);
+	uint8_t hi = read8_indirect(cpu, addr + 1);
+	return (hi << 8) | lo;
+}
+
+static void
 ADDR_ABS(r2A03 *cpu)
 {
 	cpu->addr = read16(cpu);
@@ -393,7 +453,7 @@ ADDR_ABS(r2A03 *cpu)
 static void
 ADDR_ACC(r2A03 *cpu)
 {
-	return;
+	cpu->acc = 1;
 }
 
 static void
@@ -475,19 +535,47 @@ ADDR_ILL(r2A03 *cpu)
 static void
 OP_ADC(r2A03 *cpu)
 {
-	/* TODO add memory to accumulator with carry */
+	uint8_t tmp = cpu->A;
+	uint8_t carry, overflow;
+
+	cpu->A += get8(cpu, cpu->addr) + getflag(cpu, MASK_CARRY);
+
+	/* FIXME rewrite */
+	carry = (int)tmp + (int)get8(cpu, cpu->addr) + getflag(cpu, MASK_CARRY) > 0xFF;
+	overflow = ((tmp ^ get8(cpu, cpu->addr)) & 0x80) == 0 && ((tmp ^ cpu->A) & 0x80) != 0;
+	setflag(cpu, MASK_CARRY, carry);
+	setflag(cpu, MASK_OVERFLOW, overflow);
+
+	/* TODO update N, Z flags */
+
 }
 
 static void
 OP_AND(r2A03 *cpu)
 {
-	cpu->A &= read8(cpu);
+	cpu->A &= get8(cpu, cpu->addr);
 	/* TODO modify ZN flags */
 }
 
 static void
 OP_ASL(r2A03 *cpu)
 {
+	uint8_t val;
+
+	if (cpu->acc) {
+		val = cpu->A;
+	} else {
+		val = get8(cpu, cpu->addr);
+	}
+
+	val <<= 1;
+
+	if (cpu->acc) {
+		cpu->A = val;
+		cpu->acc = 0;
+	} else {
+		write8(cpu, val);
+	}
 
 	/* TODO modify CZN flags */
 }
@@ -495,16 +583,25 @@ OP_ASL(r2A03 *cpu)
 static void
 OP_BCC(r2A03 *cpu)
 {
+	if (!getflag(cpu, MASK_CARRY)) {
+
+	}
 }
 
 static void
 OP_BCS(r2A03 *cpu)
 {
+	if (getflag(cpu, MASK_CARRY)) {
+
+	}
 }
 
 static void
 OP_BEQ(r2A03 *cpu)
 {
+	if (getflag(cpu, MASK_ZERO)) {
+
+	}
 }
 
 static void
@@ -515,16 +612,23 @@ OP_BIT(r2A03 *cpu)
 static void
 OP_BMI(r2A03 *cpu)
 {
+	if (getflag(cpu, MASK_NEGATIVE)) {
+
+	}
 }
 
 static void
 OP_BNE(r2A03 *cpu)
 {
+	if (!getflag(cpu, MASK_ZERO)) {
+	}
 }
 
 static void
 OP_BPL(r2A03 *cpu)
 {
+	if (!getflag(cpu, MASK_NEGATIVE)) {
+	}
 }
 
 static void
@@ -535,23 +639,27 @@ OP_BRK(r2A03 *cpu)
 static void
 OP_BVC(r2A03 *cpu)
 {
+	if (!getflag(cpu, MASK_OVERFLOW)) {
+	}
 }
 
 static void
 OP_BVS(r2A03 *cpu)
 {
+	if (getflag(cpu, MASK_OVERFLOW)) {
+	}
 }
 
 static void
 OP_CLC(r2A03 *cpu)
 {
-	clearflag(cpu, MASK_CARRY);
+	setflag(cpu, MASK_CARRY, 0);
 }
 
 static void
 OP_CLD(r2A03 *cpu)
 {
-	clearflag(cpu, MASK_DECIMAL);
+	setflag(cpu, MASK_DECIMAL, 0);
 }
 
 static void
@@ -562,13 +670,26 @@ OP_CLI(r2A03 *cpu)
 static void
 OP_CLV(r2A03 *cpu)
 {
-	clearflag(cpu, MASK_OVERFLOW);
+	setflag(cpu, MASK_OVERFLOW, 0);
 }
 
 static void
 OP_CMP(r2A03 *cpu)
 {
-	/* compare accumulator */
+	uint8_t val = get8(cpu, cpu->addr);
+
+	/* TODO move to separate function */
+	if (cpu->A >= val) {
+		setflag(cpu, MASK_CARRY, 1);
+	}
+
+	if (cpu->A == val) {
+		setflag(cpu, MASK_ZERO, 1);
+	}
+
+	if (((cpu->A - val) & 0x80) != 0) {
+		setflag(cpu, MASK_NEGATIVE, 1);
+	}
 }
 
 static void
@@ -592,11 +713,13 @@ OP_DEX(r2A03 *cpu)
 {
 	cpu->X--;
 	/* TODO create function for update ZN flags */
-	if (cpu->X == 0)
+	if (cpu->X == 0) {
 		cpu->P |= MASK_ZERO;
+	}
 
-	if ((cpu->X & (1 >> 7)) != 0)
+	if ((cpu->X & (1 >> 7)) != 0) {
 		cpu->P |= MASK_NEGATIVE;
+	}
 }
 
 static void
@@ -605,12 +728,13 @@ OP_DEY(r2A03 *cpu)
 	/* decrement Y register */
 	cpu->Y--;
 	/* TODO create function for update ZN flags */
-	if (cpu->Y == 0)
+	if (cpu->Y == 0) {
 		cpu->P |= MASK_ZERO;
+	}
 
-	if ((cpu->Y & (1 >> 7)) != 0)
+	if ((cpu->Y & (1 >> 7)) != 0) {
 		cpu->P |= MASK_NEGATIVE;
-
+	}
 }
 
 static void
@@ -653,13 +777,16 @@ static void
 OP_LDA(r2A03 *cpu)
 {
 	/* load memory to acc */
-	cpu->A = cpu->addr;
-	/* TODO create function for update ZN flags */
-	if (cpu->A == 0)
-		cpu->P |= MASK_ZERO;
+	cpu->A = get8(cpu, cpu->addr);
 
-	if ((cpu->A & (1 >> 7)) != 0)
+	/* TODO create function for update ZN flags */
+	if (cpu->A == 0) {
+		cpu->P |= MASK_ZERO;
+	}
+
+	if ((cpu->A & (1 >> 7)) != 0) {
 		cpu->P |= MASK_NEGATIVE;
+	}
 }
 
 static void
@@ -771,11 +898,13 @@ OP_TAX(r2A03 *cpu)
 	/* copy acc to x */
 	cpu->X = cpu->A;
 	/* TODO create function for update ZN flags */
-	if (cpu->X == 0)
+	if (cpu->X == 0) {
 		cpu->P |= MASK_ZERO;
+	}
 
-	if((cpu->X & (1 >> 7)) != 0)
+	if((cpu->X & (1 >> 7)) != 0) {
 		cpu->P |= MASK_NEGATIVE;
+	}
 }
 
 static void
@@ -808,55 +937,6 @@ OP_ILL(r2A03 *cpu)
 {
 	fprintf(stderr, "illegal opcode!\n"); /* TODO remove */
 	return;
-}
-
-static uint8_t
-read8(r2A03 *cpu)
-{
-	return bus_ram_read(cpu->bus, cpu->PC++);
-}
-
-static uint8_t
-read8_indirect(r2A03 *cpu, uint16_t location)
-{
-	return bus_ram_read(cpu->bus, location);
-}
-
-static uint16_t
-read16(r2A03 *cpu)
-{
-	uint8_t lo = read8(cpu);
-	uint8_t hi = read8(cpu);
-	return (hi << 8) | lo;
-}
-
-static uint16_t
-read16_indirect(r2A03 *cpu, uint16_t addr)
-{
-	/* TODO handle edge case:
-	* uint8_t hi = read8_indirect(cpu, addr & 0xFF00) | ((addr + 1) & 0x00FF);
-	* https://www.reddit.com/r/EmuDev/comments/fi29ah/6502_jump_indirect_error/ */
-	uint8_t lo = read8_indirect(cpu, addr);
-	uint8_t hi = read8_indirect(cpu, addr + 1);
-	return (hi << 8) | lo;
-}
-
-static void
-write8(r2A03 *cpu, uint8_t data)
-{
-	bus_ram_write(cpu->bus, cpu->addr, data);
-}
-
-static void
-setflag(r2A03 *cpu, uint8_t mask)
-{
-	cpu->P |= mask;
-}
-
-static void
-clearflag(r2A03 *cpu, uint8_t mask)
-{
-	cpu->P &= ~mask;
 }
 
 /* TODO debug stuff */

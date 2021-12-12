@@ -6,14 +6,16 @@
 struct bus;
 
 typedef struct {
-	uint8_t A;      /* accumulator */
-	uint8_t X, Y;   /* index */
-	uint8_t SP;     /* stack pointer */
-	uint8_t P;      /* flag register */
-	uint8_t nmi;    /* non-maskable interrupt */
-	uint8_t irq;    /* interrupt request */
-	uint16_t PC;    /* program counter */
-	uint16_t addr;  /* loaded address */
+	uint8_t A;     /* accumulator */
+	uint8_t X, Y;  /* index */
+	uint8_t SP;    /* stack pointer */
+	uint8_t P;     /* flag register */
+	uint8_t nmi;   /* non-maskable interrupt */
+	uint8_t irq;   /* interrupt request */
+	uint8_t acc;   /* accumulator addr mode flag */
+
+	uint16_t PC;   /* program counter */
+	uint16_t addr; /* loaded address */
 
 	uint64_t total;
 	uint64_t stall;
