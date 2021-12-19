@@ -535,16 +535,22 @@ ADDR_ILL(r2A03 *cpu)
 static void
 OP_ADC(r2A03 *cpu)
 {
-	uint8_t tmp = cpu->A;
-	uint8_t carry, overflow;
+	uint8_t acc = cpu->A;
+	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t carry = getflag(cpu, MASK_CARRY);
 
-	cpu->A += get8(cpu, cpu->addr) + getflag(cpu, MASK_CARRY);
+	cpu->A = acc + val + carry;
 
-	/* FIXME rewrite */
-	carry = (int)tmp + (int)get8(cpu, cpu->addr) + getflag(cpu, MASK_CARRY) > 0xFF;
-	overflow = ((tmp ^ get8(cpu, cpu->addr)) & 0x80) == 0 && ((tmp ^ cpu->A) & 0x80) != 0;
-	setflag(cpu, MASK_CARRY, carry);
-	setflag(cpu, MASK_OVERFLOW, overflow);
+	if ((int)acc + (int)val + (int)carry > 0xFF) {
+		setflag(cpu, MASK_CARRY, 1);
+	} else {
+		setflag(cpu, MASK_CARRY, 0);
+	}
+
+
+	/* overflow = ((tmp ^ get8(cpu, cpu->addr)) & 0x80) == 0 && ((tmp ^ cpu->A) & 0x80) != 0; */
+	/* setflag(cpu, MASK_CARRY, carry); */
+	/* setflag(cpu, MASK_OVERFLOW, overflow); */
 
 	/* TODO update N, Z flags */
 
