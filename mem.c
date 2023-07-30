@@ -1,6 +1,6 @@
 #include <string.h>	/* memset */
 
-#include "bus.h"
+/* #include "bus.h" */
 #include "mem.h"
 
 void

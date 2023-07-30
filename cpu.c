@@ -3,16 +3,18 @@
 #include "bus.h"
 #include "cpu.h"
 
-#define MASK_CARRY              0x01
-#define MASK_ZERO               0x02
-#define MASK_INTERRUPT_DISABLE  0x04
-#define MASK_DECIMAL            0x08
-#define MASK_BREAK              0x10
-#define MASK_UNUSED             0x20
-#define MASK_OVERFLOW           0x40
-#define MASK_NEGATIVE           0x80
+enum {
+	MASK_CARRY = 0x01,
+	MASK_ZERO = 0x02,
+	MASK_INTERRUPT_DISABLE = 0x04,
+	MASK_DECIMAL = 0x08,
+	MASK_BREAK = 0x10,
+	MASK_UNUSED = 0x20,
+	MASK_OVERFLOW = 0x40,
+	MASK_NEGATIVE = 0x80
+};
 
-#define TCPF 29781 /* total cycles per frame */
+enum { TCPF = 29781 }; /* total cycles per frame */
 
 typedef void (*opcode_func)(r2A03 *);
 typedef void (*addr_mode)(r2A03 *);
@@ -111,7 +113,8 @@ static void OP_TYA(r2A03 *);
 
 static void OP_ILL(r2A03 *); /* illegal */
 
-instruction optable[0xFF + 1] = {
+static instruction
+optable[0xFF + 1] = {
 	{ .idx = 0x00, .name = "BRK", .func = OP_BRK, .cycles = 7, .mode = ADDR_IMP },
 	{ .idx = 0x01, .name = "ORA", .func = OP_ORA, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0x02, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
@@ -541,26 +544,28 @@ OP_ADC(r2A03 *cpu)
 
 	cpu->A = acc + val + carry;
 
+	/* TODO upd_c() here */
 	if ((int)acc + (int)val + (int)carry > 0xFF) {
 		setflag(cpu, MASK_CARRY, 1);
 	} else {
 		setflag(cpu, MASK_CARRY, 0);
 	}
 
+	/* TODO upd_v() here */
+	if (((acc ^ val) & 0x80) == 0 && ((acc ^ cpu->A) & 0x80) != 0) {
+		setflag(cpu, MASK_OVERFLOW, 1);
+	} else {
+		setflag(cpu, MASK_OVERFLOW, 0);
+	}
 
-	/* overflow = ((tmp ^ get8(cpu, cpu->addr)) & 0x80) == 0 && ((tmp ^ cpu->A) & 0x80) != 0; */
-	/* setflag(cpu, MASK_CARRY, carry); */
-	/* setflag(cpu, MASK_OVERFLOW, overflow); */
-
-	/* TODO update N, Z flags */
-
+	/* TODO upd_zn(cpu) here */
 }
 
 static void
 OP_AND(r2A03 *cpu)
 {
 	cpu->A &= get8(cpu, cpu->addr);
-	/* TODO modify ZN flags */
+	/* TODO upd_zn(cpu) here*/
 }
 
 static void
@@ -718,7 +723,7 @@ static void
 OP_DEX(r2A03 *cpu)
 {
 	cpu->X--;
-	/* TODO create function for update ZN flags */
+	/* TODO upd_zn(cpu) here */
 	if (cpu->X == 0) {
 		cpu->P |= MASK_ZERO;
 	}
@@ -733,7 +738,7 @@ OP_DEY(r2A03 *cpu)
 {
 	/* decrement Y register */
 	cpu->Y--;
-	/* TODO create function for update ZN flags */
+	/* TODO upd_zn(cpu) here */
 	if (cpu->Y == 0) {
 		cpu->P |= MASK_ZERO;
 	}
@@ -785,7 +790,7 @@ OP_LDA(r2A03 *cpu)
 	/* load memory to acc */
 	cpu->A = get8(cpu, cpu->addr);
 
-	/* TODO create function for update ZN flags */
+	/* TODO upd_ZN(cpu) */
 	if (cpu->A == 0) {
 		cpu->P |= MASK_ZERO;
 	}
@@ -864,6 +869,27 @@ OP_RTS(r2A03 *cpu)
 static void
 OP_SBC(r2A03 *cpu)
 {
+	uint8_t acc = cpu->A;
+	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t carry = getflag(cpu, MASK_CARRY);
+
+	cpu->A = acc - val - (1 - carry);
+
+	/* TODO upd_c() here */
+	if ((int)acc - (int)val - (int)(1 - carry) >= 0x00) {
+		setflag(cpu, MASK_CARRY, 1);
+	} else {
+		setflag(cpu, MASK_CARRY, 0);
+	}
+
+	/* TODO upd_v() here */
+	/*if () {
+		setflag(cpu, MASK_OVERFLOW, 1);
+	} else {
+		setflag(cpu, MASK_OVERFLOW, 0);
+	}*/
+
+	/* TODO upd_zn(cpu) here */
 }
 
 static void
@@ -975,8 +1001,8 @@ cpu_tick(r2A03 *cpu)
 	fprintf(stderr, "cpu->PC: %d\n", cpu->PC);
 	opcode = read8(cpu);
 
-	fprintf(stderr, "idx: %d, ", optable[opcode].idx);	/* TODO remove later */
-	fprintf(stderr, "name: %s\n", optable[opcode].name);	/* TODO remove later */
+	fprintf(stderr, "idx: %d, ", optable[opcode].idx);   /* TODO remove later */
+	fprintf(stderr, "name: %s\n", optable[opcode].name); /* TODO remove later */
 
 	cpu->total += optable[opcode].cycles;
 
