@@ -45,7 +45,7 @@ nes_tick(nes *n)
 	/* bus_apu_tick(&n->bus); */
 	bus_cpu_tick(&n->bus);
 
-	bus_ppu_tick(&n->bus);
+	bus_ppu_tick(&n->bus); /* use cycle? */
 	bus_ppu_tick(&n->bus);
 	bus_ppu_tick(&n->bus);
 }
@@ -54,7 +54,7 @@ static void
 nes_run(nes *n)
 {
 	double frame_length = 1000 / fps_ntsc;
-	/*(void)frame_length;*/
+	(void)frame_length;
 
 	nes_tick(n);
 }
