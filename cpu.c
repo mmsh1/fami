@@ -27,7 +27,9 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
-static void setflag(r2A03 *, uint8_t, uint8_t);
+static void setflag(r2A03 *, uint8_t);
+static void unsetflag(r2A03 *, uint8_t);
+static void updateflag(r2A03 *, uint8_t, uint8_t); /* do we need it? */
 static void write8(r2A03 *, uint8_t);
 static uint8_t get8(r2A03 *, uint16_t);
 static uint8_t getflag(r2A03 *, uint8_t);
@@ -389,12 +391,24 @@ optable[0xFF + 1] = {
 };
 
 static void
-setflag(r2A03 *cpu, uint8_t mask, uint8_t val)
+setflag(r2A03 *cpu, uint8_t mask)
+{
+	cpu->P |= mask;
+}
+
+static void
+unsetflag(r2A03 *cpu, uint8_t mask)
+{
+	cpu->P &= ~mask;
+}
+
+static void
+updateflag(r2A03 *cpu, uint8_t mask, uint8_t val)
 {
 	if (val) {
-		cpu->P |= mask;
+		setflag(cpu, mask);
 	} else {
-		cpu->P &= ~mask;
+		unsetflag(cpu, mask);
 	}
 }
 
@@ -532,7 +546,6 @@ static void
 ADDR_ILL(r2A03 *cpu)
 {
 	fprintf(stderr, "illegal address mode!\n");
-	return;
 }
 
 static void
@@ -546,16 +559,16 @@ OP_ADC(r2A03 *cpu)
 
 	/* TODO upd_c() here */
 	if ((int)acc + (int)val + (int)carry > 0xFF) {
-		setflag(cpu, MASK_CARRY, 1);
+		setflag(cpu, MASK_CARRY);
 	} else {
-		setflag(cpu, MASK_CARRY, 0);
+		unsetflag(cpu, MASK_CARRY);
 	}
 
 	/* TODO upd_v() here */
 	if (((acc ^ val) & 0x80) == 0 && ((acc ^ cpu->A) & 0x80) != 0) {
-		setflag(cpu, MASK_OVERFLOW, 1);
+		setflag(cpu, MASK_OVERFLOW);
 	} else {
-		setflag(cpu, MASK_OVERFLOW, 0);
+		unsetflag(cpu, MASK_OVERFLOW);
 	}
 
 	/* TODO upd_zn(cpu) here */
@@ -595,7 +608,6 @@ static void
 OP_BCC(r2A03 *cpu)
 {
 	if (!getflag(cpu, MASK_CARRY)) {
-
 	}
 }
 
@@ -603,7 +615,6 @@ static void
 OP_BCS(r2A03 *cpu)
 {
 	if (getflag(cpu, MASK_CARRY)) {
-
 	}
 }
 
@@ -611,7 +622,6 @@ static void
 OP_BEQ(r2A03 *cpu)
 {
 	if (getflag(cpu, MASK_ZERO)) {
-
 	}
 }
 
@@ -624,7 +634,6 @@ static void
 OP_BMI(r2A03 *cpu)
 {
 	if (getflag(cpu, MASK_NEGATIVE)) {
-
 	}
 }
 
@@ -645,6 +654,7 @@ OP_BPL(r2A03 *cpu)
 static void
 OP_BRK(r2A03 *cpu)
 {
+	return;
 }
 
 static void
@@ -664,13 +674,13 @@ OP_BVS(r2A03 *cpu)
 static void
 OP_CLC(r2A03 *cpu)
 {
-	setflag(cpu, MASK_CARRY, 0);
+	unsetflag(cpu, MASK_CARRY);
 }
 
 static void
 OP_CLD(r2A03 *cpu)
 {
-	setflag(cpu, MASK_DECIMAL, 0);
+	setflag(cpu, MASK_DECIMAL);
 }
 
 static void
@@ -681,7 +691,7 @@ OP_CLI(r2A03 *cpu)
 static void
 OP_CLV(r2A03 *cpu)
 {
-	setflag(cpu, MASK_OVERFLOW, 0);
+	unsetflag(cpu, MASK_OVERFLOW);
 }
 
 static void
@@ -691,15 +701,15 @@ OP_CMP(r2A03 *cpu)
 
 	/* TODO move to separate function */
 	if (cpu->A >= val) {
-		setflag(cpu, MASK_CARRY, 1);
+		setflag(cpu, MASK_CARRY);
 	}
 
 	if (cpu->A == val) {
-		setflag(cpu, MASK_ZERO, 1);
+		setflag(cpu, MASK_ZERO);
 	}
 
 	if (((cpu->A - val) & 0x80) != 0) {
-		setflag(cpu, MASK_NEGATIVE, 1);
+		setflag(cpu, MASK_NEGATIVE);
 	}
 }
 
@@ -877,16 +887,16 @@ OP_SBC(r2A03 *cpu)
 
 	/* TODO upd_c() here */
 	if ((int)acc - (int)val - (int)(1 - carry) >= 0x00) {
-		setflag(cpu, MASK_CARRY, 1);
+		setflag(cpu, MASK_CARRY);
 	} else {
-		setflag(cpu, MASK_CARRY, 0);
+		unsetflag(cpu, MASK_CARRY);
 	}
 
 	/* TODO upd_v() here */
 	/*if () {
-		setflag(cpu, MASK_OVERFLOW, 1);
+		setflag(cpu, MASK_OVERFLOW);
 	} else {
-		setflag(cpu, MASK_OVERFLOW, 0);
+		unsetflag(cpu, MASK_OVERFLOW);
 	}*/
 
 	/* TODO upd_zn(cpu) here */
@@ -972,13 +982,13 @@ OP_ILL(r2A03 *cpu)
 }
 
 /* TODO debug stuff */
-/*static void
+static void
 print_internals(r2A03 *cpu)
 {
 	fprintf(stderr, "INFO: CURRENT PC: %u\n", cpu->PC);
 	fprintf(stderr, "INFO: CURRENT TOTAL: %lu\n", cpu->total);
 	fprintf(stderr, "INFO: CURRENT STALL: %lu\n", cpu->stall);
-}*/
+}
 
 void
 cpu_tick(r2A03 *cpu)
