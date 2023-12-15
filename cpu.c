@@ -14,6 +14,10 @@ enum {
 	MASK_NEGATIVE = 0x80
 };
 
+enum {
+	RESET_PC = 0xFFFC
+};
+
 enum { TCPF = 29781 }; /* total cycles per frame */
 
 typedef void (*opcode_func)(r2A03 *);
@@ -424,6 +428,14 @@ get8(r2A03 *cpu, uint16_t addr)
 	return bus_ram_read(cpu->bus, addr);
 }
 
+static uint16_t
+get16(r2A03 *cpu, uint16_t addr)
+{
+	uint8_t lo = get8(cpu, addr);
+	uint8_t hi = get8(cpu, addr + 1); // TODO check address somehow
+	return (hi << 8) | lo;
+}
+
 static uint8_t
 getflag(r2A03 *cpu, uint8_t mask)
 {
@@ -654,7 +666,10 @@ OP_BPL(r2A03 *cpu)
 static void
 OP_BRK(r2A03 *cpu)
 {
-	return;
+	/* cpu->PC to stack */
+	/* processor status to stack */
+	/* IRQ interrupt vector at $FFFE/F is loaded into the PC */
+	setflag(cpu, MASK_BREAK); /* break flag in the status set to one. */
 }
 
 static void
@@ -937,15 +952,23 @@ OP_STY(r2A03 *cpu)
 static void
 OP_TAX(r2A03 *cpu)
 {
-	/* copy acc to x */
-	cpu->X = cpu->A;
-	/* TODO create function for update ZN flags */
+	cpu->X = cpu->A; /* copy acc to x */
+	/*
+	updateflag_zn(cpu->X);
+	updateflag_z(cpu->X);
+	updateflag_n(cpu->X);
+	*/
+
 	if (cpu->X == 0) {
-		cpu->P |= MASK_ZERO;
+		setflag(cpu, MASK_ZERO);
+	} else {
+		unsetflag(cpu, MASK_ZERO);
 	}
 
 	if((cpu->X & (1 >> 7)) != 0) {
-		cpu->P |= MASK_NEGATIVE;
+		setflag(cpu, MASK_NEGATIVE);
+	} else {
+		unsetflag(cpu, MASK_NEGATIVE);
 	}
 }
 
@@ -1023,7 +1046,7 @@ cpu_tick(r2A03 *cpu)
 void
 cpu_reset(r2A03 *cpu)
 {
-	cpu->PC = 0xFFFC;
+	cpu->PC = get16(cpu, RESET_PC);
 	cpu->SP = 0x00;
 	cpu->P = 0;
 	cpu->A = 0;
