@@ -13,6 +13,17 @@ typedef struct {
 
 static double fps_ntsc = 60.0988;
 
+static long int
+nes_get_romsize(FILE *rom)
+{
+	int64_t size;
+
+	fseek(rom, 0, SEEK_END);
+	size = ftell(rom);
+	fseek(rom, 0, SEEK_SET);
+	return size;
+}
+
 static int
 nes_loadrom(nes *n, const char *path)
 {
@@ -28,14 +39,9 @@ nes_loadrom(nes *n, const char *path)
 
 	/* NOTE now we believe that rom size will fit in our buffer */
 	/* TODO rewrite it! */
-	fseek(rom, 0, SEEK_END);
-	size = ftell(rom);
-	fseek(rom, 0, SEEK_SET);
-
+	size = nes_get_romsize(rom);
 	readed = fread(&n->ram[0x8000], size, 1, rom);
-
 	fclose(rom);
-
 	return 0;
 }
 
