@@ -41,6 +41,13 @@ static uint8_t read8(r2A03 *);
 static uint8_t read8_indirect(r2A03 *, uint16_t);
 static uint16_t read16(r2A03 *);
 static uint16_t read16_indirect(r2A03 *, uint16_t);
+
+static void upd_c(r2A03 *, uint8_t);
+static void upd_n(r2A03 *, uint8_t);
+static void upd_v(r2A03 *, uint8_t);
+static void upd_z(r2A03 *, uint8_t);
+static void upd_zn(r2A03 *, uint8_t);
+
 /*static void setirq(r2A03 *, uint8_t);*/
 /*static void setnmi(r2A03 *, uint8_t);*/
 
@@ -474,6 +481,33 @@ read16_indirect(r2A03 *cpu, uint16_t addr)
 }
 
 static void
+upd_c(r2A03 *cpu, uint8_t val)
+{
+}
+
+static void
+upd_n(r2A03 *cpu, uint8_t val)
+{
+}
+
+static void
+upd_v(r2A03 *cpu, uint8_t val)
+{
+}
+
+static void
+upd_z(r2A03 *cpu, uint8_t val)
+{
+}
+
+static void
+upd_zn(r2A03 *cpu, uint8_t val)
+{
+	upd_z(cpu, val);
+	upd_n(cpu, val);
+}
+
+static void
 ADDR_ABS(r2A03 *cpu)
 {
 	cpu->addr = read16(cpu);
@@ -482,7 +516,7 @@ ADDR_ABS(r2A03 *cpu)
 static void
 ADDR_ACC(r2A03 *cpu)
 {
-	cpu->acc = 1;
+	cpu->acc_mode = 1;
 }
 
 static void
@@ -583,37 +617,32 @@ OP_ADC(r2A03 *cpu)
 		unsetflag(cpu, MASK_OVERFLOW);
 	}
 
-	/* TODO upd_zn(cpu) here */
+	upd_zn(cpu, val);
 }
 
 static void
 OP_AND(r2A03 *cpu)
 {
 	cpu->A &= get8(cpu, cpu->addr);
-	/* TODO upd_zn(cpu) here*/
+	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_ASL(r2A03 *cpu)
 {
 	uint8_t val;
-
-	if (cpu->acc) {
-		val = cpu->A;
+	if (cpu->acc_mode) {
+		cpu->A = cpu->A << 1;
+		cpu->acc_mode = 0;
+		upd_zn(cpu, cpu->A);
 	} else {
 		val = get8(cpu, cpu->addr);
-	}
-
-	val <<= 1;
-
-	if (cpu->acc) {
-		cpu->A = val;
-		cpu->acc = 0;
-	} else {
+		val <<= 1;
 		write8(cpu, val);
+		upd_zn(cpu, val);
 	}
 
-	/* TODO modify CZN flags */
+	/* TODO modify carry flag */
 }
 
 static void
@@ -715,6 +744,9 @@ OP_CMP(r2A03 *cpu)
 	uint8_t val = get8(cpu, cpu->addr);
 
 	/* TODO move to separate function */
+	upd_c(cpu, val);
+	upd_zn(cpu, val);
+
 	if (cpu->A >= val) {
 		setflag(cpu, MASK_CARRY);
 	}
@@ -748,6 +780,8 @@ static void
 OP_DEX(r2A03 *cpu)
 {
 	cpu->X--;
+	upd_zn(cpu, cpu->X);
+
 	/* TODO upd_zn(cpu) here */
 	if (cpu->X == 0) {
 		cpu->P |= MASK_ZERO;
@@ -763,6 +797,8 @@ OP_DEY(r2A03 *cpu)
 {
 	/* decrement Y register */
 	cpu->Y--;
+	upd_zn(cpu, cpu->Y);
+
 	/* TODO upd_zn(cpu) here */
 	if (cpu->Y == 0) {
 		cpu->P |= MASK_ZERO;
@@ -788,6 +824,7 @@ static void
 OP_INX(r2A03 *cpu)
 {
 	cpu->X++;
+	upd_zn(cpu, cpu->X);
 	/* TODO check page crossing */
 }
 
@@ -815,7 +852,7 @@ OP_LDA(r2A03 *cpu)
 	/* load memory to acc */
 	cpu->A = get8(cpu, cpu->addr);
 
-	/* TODO upd_ZN(cpu) */
+	/* TODO upd_zn(cpu, cpu->A) */
 	if (cpu->A == 0) {
 		cpu->P |= MASK_ZERO;
 	}
@@ -920,12 +957,13 @@ OP_SBC(r2A03 *cpu)
 static void
 OP_SEC(r2A03 *cpu)
 {
+	setflag(cpu, MASK_CARRY);
 }
 
 static void
 OP_SED(r2A03 *cpu)
 {
-	/* set decimal flag */
+	setflag(cpu, MASK_DECIMAL);
 }
 
 static void
