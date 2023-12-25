@@ -488,6 +488,12 @@ upd_c(r2A03 *cpu, uint8_t val)
 static void
 upd_n(r2A03 *cpu, uint8_t val)
 {
+	if((val & (1 >> 7)) != 0) { /* check if bit 7 of val is set */
+		setflag(cpu, MASK_NEGATIVE);
+	} else {
+		unsetflag(cpu, MASK_NEGATIVE);
+	}
+
 }
 
 static void
@@ -498,6 +504,11 @@ upd_v(r2A03 *cpu, uint8_t val)
 static void
 upd_z(r2A03 *cpu, uint8_t val)
 {
+	if (val == 0) {
+		setflag(cpu, MASK_ZERO);
+	} else {
+		unsetflag(cpu, MASK_ZERO);
+	}
 }
 
 static void
@@ -611,7 +622,8 @@ OP_ADC(r2A03 *cpu)
 	}
 
 	/* TODO upd_v() here */
-	if (((acc ^ val) & 0x80) == 0 && ((acc ^ cpu->A) & 0x80) != 0) {
+
+	if (((acc ^ val) & MASK_NEGATIVE) == 0 && ((acc ^ cpu->A) & MASK_NEGATIVE) != 0) {
 		setflag(cpu, MASK_OVERFLOW);
 	} else {
 		unsetflag(cpu, MASK_OVERFLOW);
@@ -630,25 +642,24 @@ OP_AND(r2A03 *cpu)
 static void
 OP_ASL(r2A03 *cpu)
 {
-	uint8_t val;
 	if (cpu->acc_mode) {
 		cpu->A = cpu->A << 1;
 		cpu->acc_mode = 0;
+		upd_c(cpu, cpu->A);
 		upd_zn(cpu, cpu->A);
 	} else {
-		val = get8(cpu, cpu->addr);
-		val <<= 1;
+		uint8_t val = get8(cpu, cpu->addr) << 1;
 		write8(cpu, val);
+		upd_c(cpu, val);
 		upd_zn(cpu, val);
 	}
-
-	/* TODO modify carry flag */
 }
 
 static void
 OP_BCC(r2A03 *cpu)
 {
 	if (!getflag(cpu, MASK_CARRY)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -656,6 +667,7 @@ static void
 OP_BCS(r2A03 *cpu)
 {
 	if (getflag(cpu, MASK_CARRY)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -663,6 +675,7 @@ static void
 OP_BEQ(r2A03 *cpu)
 {
 	if (getflag(cpu, MASK_ZERO)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -675,6 +688,7 @@ static void
 OP_BMI(r2A03 *cpu)
 {
 	if (getflag(cpu, MASK_NEGATIVE)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -682,6 +696,7 @@ static void
 OP_BNE(r2A03 *cpu)
 {
 	if (!getflag(cpu, MASK_ZERO)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -689,6 +704,7 @@ static void
 OP_BPL(r2A03 *cpu)
 {
 	if (!getflag(cpu, MASK_NEGATIVE)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -705,6 +721,7 @@ static void
 OP_BVC(r2A03 *cpu)
 {
 	if (!getflag(cpu, MASK_OVERFLOW)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -712,6 +729,7 @@ static void
 OP_BVS(r2A03 *cpu)
 {
 	if (getflag(cpu, MASK_OVERFLOW)) {
+		cpu->PC = cpu->addr;
 	}
 }
 
@@ -724,12 +742,13 @@ OP_CLC(r2A03 *cpu)
 static void
 OP_CLD(r2A03 *cpu)
 {
-	setflag(cpu, MASK_DECIMAL);
+	unsetflag(cpu, MASK_DECIMAL);
 }
 
 static void
 OP_CLI(r2A03 *cpu)
 {
+	unsetflag(cpu, MASK_INTERRUPT_DISABLE);
 }
 
 static void
@@ -744,8 +763,9 @@ OP_CMP(r2A03 *cpu)
 	uint8_t val = get8(cpu, cpu->addr);
 
 	/* TODO move to separate function */
-	upd_c(cpu, val);
-	upd_zn(cpu, val);
+	/*upd_c(cpu, val);*/
+	/*upd_z(cpu, val);*/
+	/*upd_zn(cpu, val);*/
 
 	if (cpu->A >= val) {
 		setflag(cpu, MASK_CARRY);
@@ -764,6 +784,7 @@ static void
 OP_CPX(r2A03 *cpu)
 {
 	/* TODO compare x and mem */
+	/* uint8_t val = get8(cpu, cpu->addr); */
 }
 
 static void
@@ -779,17 +800,9 @@ OP_DEC(r2A03 *cpu)
 static void
 OP_DEX(r2A03 *cpu)
 {
+	/* decrement X register */
 	cpu->X--;
 	upd_zn(cpu, cpu->X);
-
-	/* TODO upd_zn(cpu) here */
-	if (cpu->X == 0) {
-		cpu->P |= MASK_ZERO;
-	}
-
-	if ((cpu->X & (1 >> 7)) != 0) {
-		cpu->P |= MASK_NEGATIVE;
-	}
 }
 
 static void
@@ -798,15 +811,6 @@ OP_DEY(r2A03 *cpu)
 	/* decrement Y register */
 	cpu->Y--;
 	upd_zn(cpu, cpu->Y);
-
-	/* TODO upd_zn(cpu) here */
-	if (cpu->Y == 0) {
-		cpu->P |= MASK_ZERO;
-	}
-
-	if ((cpu->Y & (1 >> 7)) != 0) {
-		cpu->P |= MASK_NEGATIVE;
-	}
 }
 
 static void
@@ -851,15 +855,7 @@ OP_LDA(r2A03 *cpu)
 {
 	/* load memory to acc */
 	cpu->A = get8(cpu, cpu->addr);
-
-	/* TODO upd_zn(cpu, cpu->A) */
-	if (cpu->A == 0) {
-		cpu->P |= MASK_ZERO;
-	}
-
-	if ((cpu->A & (1 >> 7)) != 0) {
-		cpu->P |= MASK_NEGATIVE;
-	}
+	upd_zn(cpu, cpu->A);
 }
 
 static void
@@ -990,34 +986,21 @@ OP_STY(r2A03 *cpu)
 static void
 OP_TAX(r2A03 *cpu)
 {
-	cpu->X = cpu->A; /* copy acc to x */
-	/*
-	updateflag_zn(cpu->X);
-	updateflag_z(cpu->X);
-	updateflag_n(cpu->X);
-	*/
-
-	if (cpu->X == 0) {
-		setflag(cpu, MASK_ZERO);
-	} else {
-		unsetflag(cpu, MASK_ZERO);
-	}
-
-	if((cpu->X & (1 >> 7)) != 0) {
-		setflag(cpu, MASK_NEGATIVE);
-	} else {
-		unsetflag(cpu, MASK_NEGATIVE);
-	}
+	cpu->X = cpu->A;
+	upd_zn(cpu, cpu->X);
 }
 
 static void
 OP_TAY(r2A03 *cpu)
 {
+	cpu->Y = cpu->A;
+	upd_zn(cpu, cpu->Y);
 }
 
 static void
 OP_TSX(r2A03 *cpu)
 {
+
 }
 
 static void
@@ -1082,8 +1065,9 @@ cpu_tick(r2A03 *cpu)
 }
 
 void
-cpu_reset(r2A03 *cpu)
+cpu_reset(r2A03 *cpu, bus *bus)
 {
+	cpu->bus = bus;
 	cpu->PC = get16(cpu, RESET_PC);
 	cpu->SP = 0x00;
 	cpu->P = 0;

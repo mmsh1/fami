@@ -3,11 +3,16 @@
 #include "ppu.h"
 
 void
-bus_cpu_reset(bus *b, r2A03 *c)
+bus_init(bus *b, r2A03 *c, uint8_t *r)
 {
-	cpu_reset(c);
 	b->cpu = c;
-	c->bus = b;
+	b->ram = r;
+}
+
+void
+bus_cpu_reset(bus *b)
+{
+	cpu_reset(b->cpu, b);
 }
 
 void
@@ -17,11 +22,9 @@ bus_cpu_tick(bus *b)
 }
 
 void
-bus_ppu_reset(bus *b, r2C02 *p)
+bus_ppu_reset(bus *b)
 {
-	/* ppu_reset(p); */
-	b->ppu = p;
-	/* p->bus = b */
+	/* ppu_reset(b->ppu); */
 }
 
 void
@@ -31,10 +34,9 @@ bus_ppu_tick(bus *b)
 }
 
 void
-bus_ram_reset(bus *b, uint8_t *r)
+bus_ram_reset(bus *b)
 {
-	mem_reset(r);
-	b->ram = r;
+	mem_reset(b->ram);
 }
 
 uint8_t
@@ -43,7 +45,6 @@ bus_ram_read(bus *b, uint16_t addr)
 	if (addr >= 0x0000 && addr <= 0xFFFF) {
 		return b->ram[addr]; /* TODO add check */
 	}
-
 	return 0; //TODO create error value
 }
 

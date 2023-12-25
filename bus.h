@@ -13,17 +13,20 @@ typedef struct bus {
 	uint8_t *ram;
 } bus;
 
+void bus_init(bus *, r2A03 *, uint8_t *);
+
 void bus_apu_reset(bus *);
 void bus_apu_tick(bus *);
 
-void bus_cpu_reset(bus *, r2A03 *);
+void bus_cpu_reset(bus *);
 void bus_cpu_tick(bus *);
 
-void bus_ppu_reset(bus *, r2C02 *);
+void bus_ppu_reset(bus *);
 void bus_ppu_tick(bus *);
 
 uint8_t bus_ram_read(bus *, uint16_t);
-void bus_ram_reset(bus *, uint8_t *);
+void bus_ram_reset(bus *);
 void bus_ram_write(bus *, uint16_t, uint8_t);
+
 
 #endif /* NES_BUS_H */

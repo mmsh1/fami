@@ -22,7 +22,7 @@ typedef struct {
 	struct bus *bus;
 } r2A03;
 
-void cpu_reset(r2A03 *);
+void cpu_reset(r2A03 *, struct bus *);
 void cpu_tick(r2A03 *);
 
 #endif /* NES_CPU_H */
