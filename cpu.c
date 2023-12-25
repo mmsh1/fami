@@ -48,7 +48,8 @@ static void upd_v(r2A03 *, uint8_t);
 static void upd_z(r2A03 *, uint8_t);
 static void upd_zn(r2A03 *, uint8_t);
 
-static int overflowed(uint8_t, uint8_t, uint8_t);
+static int overflowed_sum(uint8_t, uint8_t, uint8_t);
+static int overflowed_sub(uint8_t, uint8_t, uint8_t);
 /*static void setirq(r2A03 *, uint8_t);*/
 /*static void setnmi(r2A03 *, uint8_t);*/
 
@@ -520,13 +521,22 @@ upd_zn(r2A03 *cpu, uint8_t val)
 }
 
 static int
-overflowed(uint8_t a, uint8_t b, uint8_t c)
+overflowed_sum(uint8_t a, uint8_t b, uint8_t c)
 {
 	/*
 	 * returns 1 if A and B have the same sign
 	 * but A and C have different signs
 	 */
 	return (((a ^ b) & 0x80) == 0 && ((a ^ c) & 0x80) != 0);
+}
+
+static int
+overflowed_sub(uint8_t a, uint8_t b, uint8_t c)
+{
+	/*
+	 * like overflowed_sum but for subtraction
+	 */
+	return (((a ^ b) & 0x80) != 0 && ((a ^ c) & 0x80) != 0);
 }
 
 static void
@@ -632,7 +642,7 @@ OP_ADC(r2A03 *cpu)
 		unsetflag(cpu, MASK_CARRY);
 	}
 
-	if (overflowed(acc, val, cpu->A)) {
+	if (overflowed_sum(acc, val, cpu->A)) {
 		setflag(cpu, MASK_OVERFLOW);
 	} else {
 		unsetflag(cpu, MASK_OVERFLOW);
@@ -949,12 +959,11 @@ OP_SBC(r2A03 *cpu)
 		unsetflag(cpu, MASK_CARRY);
 	}
 
-	/* TODO upd_v() here */
-	/*if () {
+	if (overflowed_sub(acc, val, cpu->A)) {
 		setflag(cpu, MASK_OVERFLOW);
 	} else {
 		unsetflag(cpu, MASK_OVERFLOW);
-	}*/
+	}
 
 	/* TODO upd_zn(cpu) here */
 }
