@@ -48,6 +48,7 @@ static void upd_v(r2A03 *, uint8_t);
 static void upd_z(r2A03 *, uint8_t);
 static void upd_zn(r2A03 *, uint8_t);
 
+static int overflowed(uint8_t, uint8_t, uint8_t);
 /*static void setirq(r2A03 *, uint8_t);*/
 /*static void setnmi(r2A03 *, uint8_t);*/
 
@@ -518,6 +519,16 @@ upd_zn(r2A03 *cpu, uint8_t val)
 	upd_n(cpu, val);
 }
 
+static int
+overflowed(uint8_t a, uint8_t b, uint8_t c)
+{
+	/*
+	 * returns 1 if A and B have the same sign
+	 * but A and C have different signs
+	 */
+	return (((a ^ b) & 0x80) == 0 && ((a ^ c) & 0x80) != 0);
+}
+
 static void
 ADDR_ABS(r2A03 *cpu)
 {
@@ -621,9 +632,7 @@ OP_ADC(r2A03 *cpu)
 		unsetflag(cpu, MASK_CARRY);
 	}
 
-	/* TODO upd_v() here */
-
-	if (((acc ^ val) & MASK_NEGATIVE) == 0 && ((acc ^ cpu->A) & MASK_NEGATIVE) != 0) {
+	if (overflowed(acc, val, cpu->A)) {
 		setflag(cpu, MASK_OVERFLOW);
 	} else {
 		unsetflag(cpu, MASK_OVERFLOW);
