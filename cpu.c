@@ -31,17 +31,22 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
-static void setflag(r2A03 *, uint8_t);
-static void unsetflag(r2A03 *, uint8_t);
-static void updateflag(r2A03 *, uint8_t, uint8_t); /* do we need it? */
 static void write8(r2A03 *, uint8_t);
 static uint8_t get8(r2A03 *, uint16_t);
-static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t read8(r2A03 *);
 static uint8_t read8_indirect(r2A03 *, uint16_t);
 static uint16_t read16(r2A03 *);
 static uint16_t read16_indirect(r2A03 *, uint16_t);
 
+static uint8_t getflag(r2A03 *, uint8_t);
+static uint8_t get_c(r2A03 *);
+static uint8_t get_n(r2A03 *);
+static uint8_t get_v(r2A03 *);
+static uint8_t get_z(r2A03 *);
+
+static void setflag(r2A03 *, uint8_t);
+static void unsetflag(r2A03 *, uint8_t);
+static void upd_flag(r2A03 *, uint8_t, uint8_t);
 static void upd_c(r2A03 *, uint8_t);
 static void upd_n(r2A03 *, uint8_t);
 static void upd_v(r2A03 *, uint8_t);
@@ -404,28 +409,6 @@ optable[0xFF + 1] = {
 };
 
 static void
-setflag(r2A03 *cpu, uint8_t mask)
-{
-	cpu->P |= mask;
-}
-
-static void
-unsetflag(r2A03 *cpu, uint8_t mask)
-{
-	cpu->P &= ~mask;
-}
-
-static void
-updateflag(r2A03 *cpu, uint8_t mask, uint8_t val)
-{
-	if (val) {
-		setflag(cpu, mask);
-	} else {
-		unsetflag(cpu, mask);
-	}
-}
-
-static void
 write8(r2A03 *cpu, uint8_t data)
 {
 	bus_ram_write(cpu->bus, cpu->addr, data);
@@ -443,12 +426,6 @@ get16(r2A03 *cpu, uint16_t addr)
 	uint8_t lo = get8(cpu, addr);
 	uint8_t hi = get8(cpu, addr + 1); // TODO check address somehow
 	return (hi << 8) | lo;
-}
-
-static uint8_t
-getflag(r2A03 *cpu, uint8_t mask)
-{
-	return cpu->P & mask;
 }
 
 static uint8_t
@@ -482,41 +459,96 @@ read16_indirect(r2A03 *cpu, uint16_t addr)
 	return (hi << 8) | lo;
 }
 
+static uint8_t
+getflag(r2A03 *cpu, uint8_t mask)
+{
+	return cpu->P & mask;
+}
+
+static uint8_t
+get_c(r2A03 *cpu)
+{
+	return getflag(cpu, MASK_CARRY);
+}
+
+static uint8_t
+get_n(r2A03 *cpu)
+{
+	return getflag(cpu, MASK_NEGATIVE);
+}
+
+static uint8_t
+get_v(r2A03 *cpu)
+{
+	return getflag(cpu, MASK_OVERFLOW);
+}
+
+static uint8_t
+get_z(r2A03 *cpu)
+{
+	return getflag(cpu, MASK_ZERO);
+}
+
+static void
+setflag(r2A03 *cpu, uint8_t mask)
+{
+	cpu->P |= mask;
+}
+
+static void
+unsetflag(r2A03 *cpu, uint8_t mask)
+{
+	cpu->P &= ~mask;
+}
+
+static void
+upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
+{
+	if (val) {
+		setflag(cpu, mask);
+	} else {
+		unsetflag(cpu, mask);
+	}
+}
+
 static void
 upd_c(r2A03 *cpu, uint8_t val)
 {
+	upd_flag(cpu, MASK_CARRY, val);
 }
 
 static void
 upd_n(r2A03 *cpu, uint8_t val)
 {
-	if((val & (1 >> 7)) != 0) { /* check if bit 7 of val is set */
-		setflag(cpu, MASK_NEGATIVE);
-	} else {
-		unsetflag(cpu, MASK_NEGATIVE);
-	}
-
+	upd_flag(cpu, MASK_NEGATIVE, val);
 }
 
 static void
 upd_v(r2A03 *cpu, uint8_t val)
 {
+	upd_flag(cpu, MASK_OVERFLOW, val);
 }
 
 static void
 upd_z(r2A03 *cpu, uint8_t val)
 {
-	if (val == 0) {
-		setflag(cpu, MASK_ZERO);
-	} else {
-		unsetflag(cpu, MASK_ZERO);
-	}
+	upd_flag(cpu, MASK_ZERO, val);
 }
 
 static void
 upd_zn(r2A03 *cpu, uint8_t val)
 {
+	//if (val == 0) {
+	//	setflag(cpu, MASK_ZERO);
+	//} else {
+	//	unsetflag(cpu, MASK_ZERO);
+	//}
 	upd_z(cpu, val);
+	//if((val & (1 >> 7)) != 0) { /* check if bit 7 of val is set */
+	//	setflag(cpu, MASK_NEGATIVE);
+	//} else {
+	//	unsetflag(cpu, MASK_NEGATIVE);
+	//}
 	upd_n(cpu, val);
 }
 
@@ -635,19 +667,8 @@ OP_ADC(r2A03 *cpu)
 
 	cpu->A = acc + val + carry;
 
-	/* TODO upd_c() here */
-	if ((int)acc + (int)val + (int)carry > 0xFF) {
-		setflag(cpu, MASK_CARRY);
-	} else {
-		unsetflag(cpu, MASK_CARRY);
-	}
-
-	if (overflowed_sum(acc, val, cpu->A)) {
-		setflag(cpu, MASK_OVERFLOW);
-	} else {
-		unsetflag(cpu, MASK_OVERFLOW);
-	}
-
+	upd_c(cpu, (int)acc + (int)val + (int)carry > 0xFF); /* create func detect_carry() */
+	upd_v(cpu, overflowed_sum(acc, val, cpu->A));
 	upd_zn(cpu, val);
 }
 
@@ -677,7 +698,7 @@ OP_ASL(r2A03 *cpu)
 static void
 OP_BCC(r2A03 *cpu)
 {
-	if (!getflag(cpu, MASK_CARRY)) {
+	if (!get_c(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -685,7 +706,7 @@ OP_BCC(r2A03 *cpu)
 static void
 OP_BCS(r2A03 *cpu)
 {
-	if (getflag(cpu, MASK_CARRY)) {
+	if (get_c(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -693,7 +714,7 @@ OP_BCS(r2A03 *cpu)
 static void
 OP_BEQ(r2A03 *cpu)
 {
-	if (getflag(cpu, MASK_ZERO)) {
+	if (get_z(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -701,12 +722,16 @@ OP_BEQ(r2A03 *cpu)
 static void
 OP_BIT(r2A03 *cpu)
 {
+	uint8_t val = get8(cpu, cpu->addr);
+	upd_z(cpu, (cpu->A & val) == 0);
+	upd_n(cpu, val & MASK_NEGATIVE);
+	upd_v(cpu, val & MASK_OVERFLOW);
 }
 
 static void
 OP_BMI(r2A03 *cpu)
 {
-	if (getflag(cpu, MASK_NEGATIVE)) {
+	if (get_n(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -714,7 +739,7 @@ OP_BMI(r2A03 *cpu)
 static void
 OP_BNE(r2A03 *cpu)
 {
-	if (!getflag(cpu, MASK_ZERO)) {
+	if (!get_n(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -722,7 +747,7 @@ OP_BNE(r2A03 *cpu)
 static void
 OP_BPL(r2A03 *cpu)
 {
-	if (!getflag(cpu, MASK_NEGATIVE)) {
+	if (!get_n(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -780,62 +805,61 @@ static void
 OP_CMP(r2A03 *cpu)
 {
 	uint8_t val = get8(cpu, cpu->addr);
-
-	/* TODO move to separate function */
-	/*upd_c(cpu, val);*/
-	/*upd_z(cpu, val);*/
-	/*upd_zn(cpu, val);*/
-
-	if (cpu->A >= val) {
-		setflag(cpu, MASK_CARRY);
-	}
-
-	if (cpu->A == val) {
-		setflag(cpu, MASK_ZERO);
-	}
-
-	if (((cpu->A - val) & 0x80) != 0) {
-		setflag(cpu, MASK_NEGATIVE);
-	}
+	upd_c(cpu, cpu->A >= val);
+	upd_z(cpu, cpu->A == val);
+	upd_n(cpu, (cpu->A - val) & 0x80);
 }
 
 static void
 OP_CPX(r2A03 *cpu)
 {
-	/* TODO compare x and mem */
-	/* uint8_t val = get8(cpu, cpu->addr); */
+	uint8_t val = get8(cpu, cpu->addr);
+	upd_c(cpu, cpu->X >= val);
+	upd_z(cpu, cpu->X == val);
+	upd_n(cpu, (cpu->X - val) & 0x80);
 }
 
 static void
 OP_CPY(r2A03 *cpu)
 {
+	uint8_t val = get8(cpu, cpu->addr);
+	upd_c(cpu, cpu->Y >= val);
+	upd_z(cpu, cpu->Y == val);
+	upd_n(cpu, (cpu->Y - val) & 0x80);
 }
 
 static void
 OP_DEC(r2A03 *cpu)
 {
+	uint8_t val = get8(cpu, cpu->addr);
+	write8(cpu, val - 1);
+	upd_z(cpu, val - 1 == 0);
+	upd_n(cpu, val - 1 & MASK_NEGATIVE);
 }
 
 static void
 OP_DEX(r2A03 *cpu)
 {
-	/* decrement X register */
 	cpu->X--;
-	upd_zn(cpu, cpu->X);
+	upd_z(cpu, cpu->X == 0);
+	upd_n(cpu, cpu->X & MASK_NEGATIVE);
 }
 
 static void
 OP_DEY(r2A03 *cpu)
 {
-	/* decrement Y register */
 	cpu->Y--;
-	upd_zn(cpu, cpu->Y);
+	upd_z(cpu, cpu->Y == 0);
+	upd_n(cpu, cpu->Y & MASK_NEGATIVE);
 }
 
 static void
 OP_EOR(r2A03 *cpu)
 {
-	/* TODO XOR memory with accumulator */
+	uint8_t val = get8(cpu, cpu->addr);
+	cpu->A ^= val;
+	upd_z(cpu, cpu->A == 0);
+	upd_n(cpu, cpu->A & MASK_NEGATIVE);
 }
 
 static void
