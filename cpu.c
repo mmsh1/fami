@@ -40,17 +40,32 @@ static uint16_t read16_indirect(r2A03 *, uint16_t);
 
 static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t get_c(r2A03 *);
-static uint8_t get_n(r2A03 *);
-static uint8_t get_v(r2A03 *);
 static uint8_t get_z(r2A03 *);
+static uint8_t get_v(r2A03 *);
+static uint8_t get_n(r2A03 *);
 
 static void setflag(r2A03 *, uint8_t);
+static void set_c(r2A03 *);
+static void set_z(r2A03 *);
+static void set_i(r2A03 *);
+static void set_d(r2A03 *);
+static void set_b(r2A03 *);
+static void set_v(r2A03 *);
+static void set_n(r2A03 *);
+
 static void unsetflag(r2A03 *, uint8_t);
+static void unset_c(r2A03 *);
+static void unset_z(r2A03 *);
+static void unset_i(r2A03 *);
+static void unset_d(r2A03 *);
+static void unset_v(r2A03 *);
+static void unset_n(r2A03 *);
+
 static void upd_flag(r2A03 *, uint8_t, uint8_t);
 static void upd_c(r2A03 *, uint8_t);
-static void upd_n(r2A03 *, uint8_t);
-static void upd_v(r2A03 *, uint8_t);
 static void upd_z(r2A03 *, uint8_t);
+static void upd_v(r2A03 *, uint8_t);
+static void upd_n(r2A03 *, uint8_t);
 static void upd_zn(r2A03 *, uint8_t);
 
 static int overflowed_sum(uint8_t, uint8_t, uint8_t);
@@ -502,6 +517,84 @@ unsetflag(r2A03 *cpu, uint8_t mask)
 }
 
 static void
+set_c(r2A03 *cpu)
+{
+	setflag(cpu, MASK_CARRY);
+}
+
+static void
+set_z(r2A03 *cpu)
+{
+	setflag(cpu, MASK_ZERO);
+}
+
+static void
+set_i(r2A03 *cpu)
+{
+	setflag(cpu, MASK_INTERRUPT_DISABLE);
+}
+
+static void
+set_d(r2A03 *cpu)
+{
+	setflag(cpu, MASK_DECIMAL);
+}
+
+static void
+set_b(r2A03 *cpu)
+{
+	setflag(cpu, MASK_BREAK);
+}
+
+static void
+set_v(r2A03 *cpu)
+{
+	setflag(cpu, MASK_OVERFLOW);
+}
+
+static void
+set_n(r2A03 *cpu)
+{
+	setflag(cpu, MASK_NEGATIVE);
+}
+
+static void
+unset_c(r2A03 *cpu)
+{
+	unsetflag(cpu, MASK_CARRY);
+}
+
+static void
+unset_z(r2A03 *cpu)
+{
+	unsetflag(cpu, MASK_ZERO);
+}
+
+static void
+unset_i(r2A03 *cpu)
+{
+	unsetflag(cpu, MASK_INTERRUPT_DISABLE);
+}
+
+static void
+unset_d(r2A03 *cpu)
+{
+	unsetflag(cpu, MASK_DECIMAL);
+}
+
+static void
+unset_v(r2A03 *cpu)
+{
+	unsetflag(cpu, MASK_OVERFLOW);
+}
+
+static void
+unset_n(r2A03 *cpu)
+{
+	unsetflag(cpu, MASK_NEGATIVE);
+}
+
+static void
 upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
 {
 	if (val) {
@@ -518,9 +611,9 @@ upd_c(r2A03 *cpu, uint8_t val)
 }
 
 static void
-upd_n(r2A03 *cpu, uint8_t val)
+upd_z(r2A03 *cpu, uint8_t val)
 {
-	upd_flag(cpu, MASK_NEGATIVE, val);
+	upd_flag(cpu, MASK_ZERO, val);
 }
 
 static void
@@ -530,26 +623,16 @@ upd_v(r2A03 *cpu, uint8_t val)
 }
 
 static void
-upd_z(r2A03 *cpu, uint8_t val)
+upd_n(r2A03 *cpu, uint8_t val)
 {
-	upd_flag(cpu, MASK_ZERO, val);
+	upd_flag(cpu, MASK_NEGATIVE, val);
 }
 
 static void
 upd_zn(r2A03 *cpu, uint8_t val)
 {
-	//if (val == 0) {
-	//	setflag(cpu, MASK_ZERO);
-	//} else {
-	//	unsetflag(cpu, MASK_ZERO);
-	//}
-	upd_z(cpu, val);
-	//if((val & (1 >> 7)) != 0) { /* check if bit 7 of val is set */
-	//	setflag(cpu, MASK_NEGATIVE);
-	//} else {
-	//	unsetflag(cpu, MASK_NEGATIVE);
-	//}
-	upd_n(cpu, val);
+	upd_z(cpu, val == 0);
+	upd_n(cpu, val & MASK_NEGATIVE); /* check if bit 7 of val is set */
 }
 
 static int
@@ -663,11 +746,11 @@ OP_ADC(r2A03 *cpu)
 {
 	uint8_t acc = cpu->A;
 	uint8_t val = get8(cpu, cpu->addr);
-	uint8_t carry = getflag(cpu, MASK_CARRY);
+	uint8_t carry = get_c(cpu);
 
 	cpu->A = acc + val + carry;
 
-	upd_c(cpu, (int)acc + (int)val + (int)carry > 0xFF); /* create func detect_carry() */
+	upd_c(cpu, (int)acc + (int)val + (int)carry > 0xFF); /* TODO? create func detect_carry() */
 	upd_v(cpu, overflowed_sum(acc, val, cpu->A));
 	upd_zn(cpu, val);
 }
@@ -758,13 +841,13 @@ OP_BRK(r2A03 *cpu)
 	/* cpu->PC to stack */
 	/* processor status to stack */
 	/* IRQ interrupt vector at $FFFE/F is loaded into the PC */
-	setflag(cpu, MASK_BREAK); /* break flag in the status set to one. */
+	set_b(cpu); /* break flag in the status set to one. */
 }
 
 static void
 OP_BVC(r2A03 *cpu)
 {
-	if (!getflag(cpu, MASK_OVERFLOW)) {
+	if (!get_v(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -772,7 +855,7 @@ OP_BVC(r2A03 *cpu)
 static void
 OP_BVS(r2A03 *cpu)
 {
-	if (getflag(cpu, MASK_OVERFLOW)) {
+	if (get_v(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -780,25 +863,25 @@ OP_BVS(r2A03 *cpu)
 static void
 OP_CLC(r2A03 *cpu)
 {
-	unsetflag(cpu, MASK_CARRY);
+	unset_c(cpu);
 }
 
 static void
 OP_CLD(r2A03 *cpu)
 {
-	unsetflag(cpu, MASK_DECIMAL);
+	unset_d(cpu);
 }
 
 static void
 OP_CLI(r2A03 *cpu)
 {
-	unsetflag(cpu, MASK_INTERRUPT_DISABLE);
+	unset_i(cpu);
 }
 
 static void
 OP_CLV(r2A03 *cpu)
 {
-	unsetflag(cpu, MASK_OVERFLOW);
+	unset_v(cpu);
 }
 
 static void
@@ -865,21 +948,27 @@ OP_EOR(r2A03 *cpu)
 static void
 OP_INC(r2A03 *cpu)
 {
+	uint8_t val = get8(cpu, cpu->addr);
+	val++;
+	write8(cpu, val);
+	upd_z(cpu, val == 0); /* default flag logic! TODO use upd_zn */
+	upd_n(cpu, val & MASK_NEGATIVE);
 }
 
 static void
 OP_INX(r2A03 *cpu)
 {
 	cpu->X++;
-	upd_zn(cpu, cpu->X);
-	/* TODO check page crossing */
+	upd_z(cpu, cpu->X == 0); /* default flag logic! TODO use upd_zn */
+	upd_n(cpu, cpu->X & MASK_NEGATIVE);
 }
 
 static void
 OP_INY(r2A03 *cpu)
 {
 	cpu->Y++;
-	/* TODO check page crossing */
+	upd_z(cpu, cpu->Y == 0); /* default flag logic! TODO use upd_zn */
+	upd_n(cpu, cpu->Y & MASK_NEGATIVE);
 }
 
 static void
@@ -891,80 +980,106 @@ OP_JMP(r2A03 *cpu)
 static void
 OP_JSR(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_LDA(r2A03 *cpu)
 {
-	/* load memory to acc */
 	cpu->A = get8(cpu, cpu->addr);
-	upd_zn(cpu, cpu->A);
+	upd_z(cpu, cpu->A == 0); /* default flag logic! TODO use upd_zn */
+	upd_n(cpu, cpu->A & MASK_NEGATIVE);
 }
 
 static void
 OP_LDX(r2A03 *cpu)
 {
+	uint8_t val = get8(cpu, cpu->addr);
+	cpu->X = val;
+	upd_z(cpu, cpu->X == 0); /* default flag logic! TODO use upd_zn */
+	upd_n(cpu, cpu->X & MASK_NEGATIVE);
 }
 
 static void
 OP_LDY(r2A03 *cpu)
 {
+	uint8_t val = get8(cpu, cpu->addr);
+	cpu->Y = val;
+	upd_z(cpu, cpu->Y == 0); /* default flag logic! TODO use upd_zn */
+	upd_n(cpu, cpu->Y & MASK_NEGATIVE);
 }
 
 static void
 OP_LSR(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_NOP(r2A03 *cpu)
 {
-	/* TODO check page crossing */
+	/*
+	 * The NOP instruction causes no changes to the processor
+	 * other than the normal incrementing of the program counter
+	 * to the next instruction.
+	 */
 }
 
 static void
 OP_ORA(r2A03 *cpu)
 {
+	uint8_t val = get8(cpu, cpu->addr);
+	cpu->A |= val;
+	upd_z(cpu, cpu->A == 0); /* default flag logic! TODO use upd_zn */
+	upd_n(cpu, cpu->A & MASK_NEGATIVE);
 }
 
 static void
 OP_PHA(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_PHP(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_PLA(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_PLP(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_ROL(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_ROR(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_RTI(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
 OP_RTS(r2A03 *cpu)
 {
+	/* TODO */
 }
 
 static void
@@ -972,41 +1087,31 @@ OP_SBC(r2A03 *cpu)
 {
 	uint8_t acc = cpu->A;
 	uint8_t val = get8(cpu, cpu->addr);
-	uint8_t carry = getflag(cpu, MASK_CARRY);
+	uint8_t carry = get_c(cpu);
 
 	cpu->A = acc - val - (1 - carry);
 
-	/* TODO upd_c() here */
-	if ((int)acc - (int)val - (int)(1 - carry) >= 0x00) {
-		setflag(cpu, MASK_CARRY);
-	} else {
-		unsetflag(cpu, MASK_CARRY);
-	}
-
-	if (overflowed_sub(acc, val, cpu->A)) {
-		setflag(cpu, MASK_OVERFLOW);
-	} else {
-		unsetflag(cpu, MASK_OVERFLOW);
-	}
-
-	/* TODO upd_zn(cpu) here */
+	upd_c(cpu, (int)acc - (int)val - (int)(1 - carry) >= 0x00);
+	upd_v(cpu, overflowed_sub(acc, val, cpu->A));
+	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_SEC(r2A03 *cpu)
 {
-	setflag(cpu, MASK_CARRY);
+	set_c(cpu);
 }
 
 static void
 OP_SED(r2A03 *cpu)
 {
-	setflag(cpu, MASK_DECIMAL);
+	set_d(cpu);
 }
 
 static void
 OP_SEI(r2A03 *cpu)
 {
+	set_i(cpu);
 }
 
 static void
