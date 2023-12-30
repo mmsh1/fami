@@ -924,25 +924,21 @@ static void
 OP_DEX(r2A03 *cpu)
 {
 	cpu->X--;
-	upd_z(cpu, cpu->X == 0);
-	upd_n(cpu, cpu->X & MASK_NEGATIVE);
+	upd_zn(cpu, cpu->X);
 }
 
 static void
 OP_DEY(r2A03 *cpu)
 {
 	cpu->Y--;
-	upd_z(cpu, cpu->Y == 0);
-	upd_n(cpu, cpu->Y & MASK_NEGATIVE);
+	upd_zn(cpu, cpu->Y);
 }
 
 static void
 OP_EOR(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
-	cpu->A ^= val;
-	upd_z(cpu, cpu->A == 0);
-	upd_n(cpu, cpu->A & MASK_NEGATIVE);
+	cpu->A ^= get8(cpu, cpu->addr);
+	upd_zn(cpu, cpu->A);
 }
 
 static void
@@ -951,24 +947,21 @@ OP_INC(r2A03 *cpu)
 	uint8_t val = get8(cpu, cpu->addr);
 	val++;
 	write8(cpu, val);
-	upd_z(cpu, val == 0); /* default flag logic! TODO use upd_zn */
-	upd_n(cpu, val & MASK_NEGATIVE);
+	upd_zn(cpu, val);
 }
 
 static void
 OP_INX(r2A03 *cpu)
 {
 	cpu->X++;
-	upd_z(cpu, cpu->X == 0); /* default flag logic! TODO use upd_zn */
-	upd_n(cpu, cpu->X & MASK_NEGATIVE);
+	upd_zn(cpu, cpu->X);
 }
 
 static void
 OP_INY(r2A03 *cpu)
 {
 	cpu->Y++;
-	upd_z(cpu, cpu->Y == 0); /* default flag logic! TODO use upd_zn */
-	upd_n(cpu, cpu->Y & MASK_NEGATIVE);
+	upd_zn(cpu, cpu->Y);
 }
 
 static void
@@ -987,26 +980,21 @@ static void
 OP_LDA(r2A03 *cpu)
 {
 	cpu->A = get8(cpu, cpu->addr);
-	upd_z(cpu, cpu->A == 0); /* default flag logic! TODO use upd_zn */
-	upd_n(cpu, cpu->A & MASK_NEGATIVE);
+	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_LDX(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
-	cpu->X = val;
-	upd_z(cpu, cpu->X == 0); /* default flag logic! TODO use upd_zn */
-	upd_n(cpu, cpu->X & MASK_NEGATIVE);
+	cpu->X = get8(cpu, cpu->addr);
+	upd_zn(cpu, cpu->X);
 }
 
 static void
 OP_LDY(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
-	cpu->Y = val;
-	upd_z(cpu, cpu->Y == 0); /* default flag logic! TODO use upd_zn */
-	upd_n(cpu, cpu->Y & MASK_NEGATIVE);
+	cpu->Y = get8(cpu, cpu->addr);
+	upd_zn(cpu, cpu->Y);
 }
 
 static void
@@ -1028,10 +1016,8 @@ OP_NOP(r2A03 *cpu)
 static void
 OP_ORA(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
-	cpu->A |= val;
-	upd_z(cpu, cpu->A == 0); /* default flag logic! TODO use upd_zn */
-	upd_n(cpu, cpu->A & MASK_NEGATIVE);
+	cpu->A |= get8(cpu, cpu->addr);
+	upd_zn(cpu, cpu->A);
 }
 
 static void
