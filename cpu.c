@@ -1000,7 +1000,17 @@ OP_LDY(r2A03 *cpu)
 static void
 OP_LSR(r2A03 *cpu)
 {
-	/* TODO */
+	if (cpu->acc_mode) {
+		upd_c(cpu, cpu->A & MASK_CARRY);
+		cpu->A >>= 1;
+		upd_zn(cpu, cpu->A);
+	} else {
+		uint8_t val = get8(cpu, cpu->addr);
+		upd_c(cpu, val & MASK_CARRY);
+		val >>= 1;
+		write8(cpu, val);
+		upd_zn(cpu, val);
+	}
 }
 
 static void
@@ -1109,11 +1119,13 @@ OP_STA(r2A03 *cpu)
 static void
 OP_STX(r2A03 *cpu)
 {
+	write8(cpu, cpu->X);
 }
 
 static void
 OP_STY(r2A03 *cpu)
 {
+	write8(cpu, cpu->Y);
 }
 
 static void
@@ -1133,22 +1145,28 @@ OP_TAY(r2A03 *cpu)
 static void
 OP_TSX(r2A03 *cpu)
 {
-
+	cpu->X = cpu->SP;
+	upd_zn(cpu, cpu->X);
 }
 
 static void
 OP_TXA(r2A03 *cpu)
 {
+	cpu->A = cpu->X;
+	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_TXS(r2A03 *cpu)
 {
+	cpu->SP = cpu->X;
 }
 
 static void
 OP_TYA(r2A03 *cpu)
 {
+	cpu->A = cpu->Y;
+	upd_zn(cpu, cpu->A);
 }
 
 static void
