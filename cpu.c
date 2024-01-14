@@ -31,7 +31,9 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
+static void write8_addr(r2A03 *, uint16_t, uint8_t);
 static void write8(r2A03 *, uint8_t);
+static void push(r2A03 *, uint8_t);
 static uint8_t get8(r2A03 *, uint16_t);
 static uint8_t read8(r2A03 *);
 static uint8_t read8_indirect(r2A03 *, uint16_t);
@@ -424,9 +426,23 @@ optable[0xFF + 1] = {
 };
 
 static void
+write8_addr(r2A03 *cpu, uint16_t addr, uint8_t data)
+{
+	bus_ram_write(cpu->bus, addr, data);
+}
+
+static void
 write8(r2A03 *cpu, uint8_t data)
 {
-	bus_ram_write(cpu->bus, cpu->addr, data);
+	write8_addr(cpu, cpu->addr, data);
+}
+
+static void
+push(r2A03 *cpu, uint8_t data)
+{
+	uint16_t addr = 0x100 + cpu->SP; /* TODO create constant */
+	cpu->SP--;
+	write8_addr(cpu, addr, data);
 }
 
 static uint8_t
@@ -439,7 +455,7 @@ static uint16_t
 get16(r2A03 *cpu, uint16_t addr)
 {
 	uint8_t lo = get8(cpu, addr);
-	uint8_t hi = get8(cpu, addr + 1); // TODO check address somehow
+	uint8_t hi = get8(cpu, addr + 1); /* TODO check address somehow */
 	return (hi << 8) | lo;
 }
 
@@ -973,6 +989,7 @@ OP_JMP(r2A03 *cpu)
 static void
 OP_JSR(r2A03 *cpu)
 {
+	cpu->PC;
 	/* TODO */
 }
 
