@@ -15,7 +15,12 @@ enum {
 };
 
 enum {
-	RESET_PC = 0xFFFC
+	STACK_OFFSET = 0x0100,
+};
+
+enum {
+	VECTOR_IRQ = 0xFFFE,
+	VECTOR_RESET = 0xFFFC
 };
 
 enum { TCPF = 29781 }; /* total cycles per frame */
@@ -31,12 +36,19 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
+static uint8_t is_acc_mode(r2A03 *);
+static void disable_acc_mode(r2A03 *);
+
 static void write8_addr(r2A03 *, uint16_t, uint8_t);
 static void write8(r2A03 *, uint8_t);
-static void push(r2A03 *, uint8_t);
-static uint8_t get8(r2A03 *, uint16_t);
+static void push8(r2A03 *, uint8_t);
+static void push16(r2A03 *, uint16_t);
+static uint8_t get8_addr(r2A03 *, uint16_t);
+static uint8_t get8(r2A03 *);
 static uint8_t read8(r2A03 *);
 static uint8_t read8_indirect(r2A03 *, uint16_t);
+static uint8_t pop8(r2A03 *);
+static uint16_t pop16(r2A03 *);
 static uint16_t read16(r2A03 *);
 static uint16_t read16_indirect(r2A03 *, uint16_t);
 
@@ -426,6 +438,30 @@ optable[0xFF + 1] = {
 };
 
 static void
+write_acc(r2A03 *cpu, uint8_t data)
+{
+	cpu->A = data;
+}
+
+static uint8_t
+get_acc(r2A03 *cpu)
+{
+	return cpu->A;
+}
+
+static uint8_t
+is_acc_mode(r2A03 *cpu)
+{
+	return cpu->acc_mode;
+}
+
+static void
+disable_acc_mode(r2A03 *cpu)
+{
+	cpu->acc_mode = 0;
+}
+
+static void
 write8_addr(r2A03 *cpu, uint16_t addr, uint8_t data)
 {
 	bus_ram_write(cpu->bus, addr, data);
@@ -438,37 +474,66 @@ write8(r2A03 *cpu, uint8_t data)
 }
 
 static void
-push(r2A03 *cpu, uint8_t data)
+push8(r2A03 *cpu, uint8_t data)
 {
-	uint16_t addr = 0x100 + cpu->SP; /* TODO create constant */
+	uint16_t addr = STACK_OFFSET + cpu->SP;
 	cpu->SP--;
 	write8_addr(cpu, addr, data);
 }
 
+static void
+push16(r2A03 *cpu, uint16_t data)
+{
+	push8(cpu, data >> 8);
+	push8(cpu, data & 0x00FF);
+}
+
 static uint8_t
-get8(r2A03 *cpu, uint16_t addr)
+get8_addr(r2A03 *cpu, uint16_t addr)
 {
 	return bus_ram_read(cpu->bus, addr);
+}
+
+static uint8_t
+get8(r2A03 *cpu)
+{
+	return get8_addr(cpu, cpu->addr);
 }
 
 static uint16_t
 get16(r2A03 *cpu, uint16_t addr)
 {
-	uint8_t lo = get8(cpu, addr);
-	uint8_t hi = get8(cpu, addr + 1); /* TODO check address somehow */
+	uint8_t lo = get8_addr(cpu, addr);
+	uint8_t hi = get8_addr(cpu, addr + 1); /* TODO check address somehow */
 	return (hi << 8) | lo;
 }
 
 static uint8_t
 read8(r2A03 *cpu)
 {
-	return get8(cpu, cpu->PC++);
+	return get8_addr(cpu, cpu->PC++);
 }
 
 static uint8_t
 read8_indirect(r2A03 *cpu, uint16_t location)
 {
-	return get8(cpu, location);
+	return get8_addr(cpu, location);
+}
+
+static uint8_t
+pop8(r2A03 *cpu)
+{
+	uint16_t addr = STACK_OFFSET + cpu->SP;
+	cpu->SP++;
+	return get8_addr(cpu, addr);
+}
+
+static uint16_t
+pop16(r2A03 *cpu)
+{
+	uint8_t lo = pop8(cpu);
+	uint8_t hi = pop8(cpu);
+	return (hi << 8) | lo;
 }
 
 static uint16_t
@@ -761,7 +826,7 @@ static void
 OP_ADC(r2A03 *cpu)
 {
 	uint8_t acc = cpu->A;
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	uint8_t carry = get_c(cpu);
 
 	cpu->A = acc + val + carry;
@@ -774,20 +839,20 @@ OP_ADC(r2A03 *cpu)
 static void
 OP_AND(r2A03 *cpu)
 {
-	cpu->A &= get8(cpu, cpu->addr);
+	cpu->A &= get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_ASL(r2A03 *cpu)
 {
-	if (cpu->acc_mode) {
-		cpu->A = cpu->A << 1;
-		cpu->acc_mode = 0;
+	if (is_acc_mode(cpu)) {
+		cpu->A <<= 1;
 		upd_c(cpu, cpu->A);
 		upd_zn(cpu, cpu->A);
+		disable_acc_mode(cpu);
 	} else {
-		uint8_t val = get8(cpu, cpu->addr) << 1;
+		uint8_t val = read8(cpu) << 1;
 		write8(cpu, val);
 		upd_c(cpu, val);
 		upd_zn(cpu, val);
@@ -821,7 +886,7 @@ OP_BEQ(r2A03 *cpu)
 static void
 OP_BIT(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	upd_z(cpu, (cpu->A & val) == 0);
 	upd_n(cpu, val & MASK_NEGATIVE);
 	upd_v(cpu, val & MASK_OVERFLOW);
@@ -854,10 +919,10 @@ OP_BPL(r2A03 *cpu)
 static void
 OP_BRK(r2A03 *cpu)
 {
-	/* cpu->PC to stack */
-	/* processor status to stack */
-	/* IRQ interrupt vector at $FFFE/F is loaded into the PC */
-	set_b(cpu); /* break flag in the status set to one. */
+	push16(cpu, cpu->PC);
+	set_b(cpu);
+	push8(cpu, cpu->P);
+	cpu->PC = get16(cpu, VECTOR_IRQ);
 }
 
 static void
@@ -903,7 +968,7 @@ OP_CLV(r2A03 *cpu)
 static void
 OP_CMP(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->A >= val);
 	upd_z(cpu, cpu->A == val);
 	upd_n(cpu, (cpu->A - val) & 0x80);
@@ -912,7 +977,7 @@ OP_CMP(r2A03 *cpu)
 static void
 OP_CPX(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->X >= val);
 	upd_z(cpu, cpu->X == val);
 	upd_n(cpu, (cpu->X - val) & 0x80);
@@ -921,7 +986,7 @@ OP_CPX(r2A03 *cpu)
 static void
 OP_CPY(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->Y >= val);
 	upd_z(cpu, cpu->Y == val);
 	upd_n(cpu, (cpu->Y - val) & 0x80);
@@ -930,7 +995,7 @@ OP_CPY(r2A03 *cpu)
 static void
 OP_DEC(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	write8(cpu, val - 1);
 	upd_z(cpu, val - 1 == 0);
 	upd_n(cpu, val - 1 & MASK_NEGATIVE);
@@ -953,14 +1018,14 @@ OP_DEY(r2A03 *cpu)
 static void
 OP_EOR(r2A03 *cpu)
 {
-	cpu->A ^= get8(cpu, cpu->addr);
+	cpu->A ^= get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_INC(r2A03 *cpu)
 {
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	val++;
 	write8(cpu, val);
 	upd_zn(cpu, val);
@@ -989,40 +1054,41 @@ OP_JMP(r2A03 *cpu)
 static void
 OP_JSR(r2A03 *cpu)
 {
-	cpu->PC;
-	/* TODO */
+	push16(cpu, cpu->PC - 1);
+	cpu->PC = get16(cpu, cpu->addr);
 }
 
 static void
 OP_LDA(r2A03 *cpu)
 {
-	cpu->A = get8(cpu, cpu->addr);
+	cpu->A = get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_LDX(r2A03 *cpu)
 {
-	cpu->X = get8(cpu, cpu->addr);
+	cpu->X = get8(cpu);
 	upd_zn(cpu, cpu->X);
 }
 
 static void
 OP_LDY(r2A03 *cpu)
 {
-	cpu->Y = get8(cpu, cpu->addr);
+	cpu->Y = get8(cpu);
 	upd_zn(cpu, cpu->Y);
 }
 
 static void
 OP_LSR(r2A03 *cpu)
 {
-	if (cpu->acc_mode) {
+	if (is_acc_mode(cpu)) {
 		upd_c(cpu, cpu->A & MASK_CARRY);
 		cpu->A >>= 1;
 		upd_zn(cpu, cpu->A);
+		disable_acc_mode(cpu);
 	} else {
-		uint8_t val = get8(cpu, cpu->addr);
+		uint8_t val = get8(cpu);
 		upd_c(cpu, val & MASK_CARRY);
 		val >>= 1;
 		write8(cpu, val);
@@ -1043,63 +1109,89 @@ OP_NOP(r2A03 *cpu)
 static void
 OP_ORA(r2A03 *cpu)
 {
-	cpu->A |= get8(cpu, cpu->addr);
+	cpu->A |= get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_PHA(r2A03 *cpu)
 {
-	/* TODO */
+	push8(cpu, cpu->A);
 }
 
 static void
 OP_PHP(r2A03 *cpu)
 {
-	/* TODO */
+	push8(cpu, cpu->P);
 }
 
 static void
 OP_PLA(r2A03 *cpu)
 {
-	/* TODO */
+	cpu->A = pop8(cpu);
+	upd_zn(cpu, cpu->A);
 }
 
 static void
 OP_PLP(r2A03 *cpu)
 {
-	/* TODO */
+	cpu->P = pop8(cpu);
 }
 
 static void
 OP_ROL(r2A03 *cpu)
 {
-	/* TODO */
+	uint8_t carry = get_c(cpu);
+	if (is_acc_mode(cpu)) {
+		upd_c(cpu, cpu->A & 0x80);
+		cpu->A = (cpu->A << 1) | carry;
+		upd_zn(cpu, cpu->A);
+		disable_acc_mode(cpu);
+	} else {
+		uint8_t val = get8(cpu);
+		upd_c(cpu, val & 0x80);
+		val = (val << 1) | carry;
+		write8(cpu, val);
+		upd_zn(cpu, val);
+	}
 }
 
 static void
 OP_ROR(r2A03 *cpu)
 {
-	/* TODO */
+	uint8_t carry = get_c(cpu);
+	if (is_acc_mode(cpu)) {
+		upd_c(cpu, cpu->A & 0x01);
+		cpu->A = (cpu->A >> 1) | (carry << 7);
+		upd_zn(cpu, cpu->A);
+		disable_acc_mode(cpu);
+	} else {
+		uint8_t val = get8(cpu);
+		upd_c(cpu, val & 0x01);
+		val = (val >> 1) | (carry << 7);
+		write8(cpu, val);
+		upd_zn(cpu, val);
+	}
 }
 
 static void
 OP_RTI(r2A03 *cpu)
 {
-	/* TODO */
+	cpu->P = pop8(cpu);
+	cpu->PC = pop16(cpu);
 }
 
 static void
 OP_RTS(r2A03 *cpu)
 {
-	/* TODO */
+	cpu->PC = pop16(cpu) + 1;
 }
 
 static void
 OP_SBC(r2A03 *cpu)
 {
 	uint8_t acc = cpu->A;
-	uint8_t val = get8(cpu, cpu->addr);
+	uint8_t val = get8(cpu);
 	uint8_t carry = get_c(cpu);
 
 	cpu->A = acc - val - (1 - carry);
@@ -1236,8 +1328,8 @@ void
 cpu_reset(r2A03 *cpu, bus *bus)
 {
 	cpu->bus = bus;
-	cpu->PC = get16(cpu, RESET_PC);
-	cpu->SP = 0x00;
+	cpu->PC = get16(cpu, VECTOR_RESET);
+	cpu->SP = 0xFD; /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
 	cpu->P = 0;
 	cpu->A = 0;
 	cpu->X = 0;
