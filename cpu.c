@@ -523,8 +523,8 @@ read8_indirect(r2A03 *cpu, uint16_t location)
 static uint8_t
 pop8(r2A03 *cpu)
 {
-	uint16_t addr = STACK_OFFSET + cpu->SP;
 	cpu->SP++;
+	uint16_t addr = STACK_OFFSET + cpu->SP;
 	return get8_addr(cpu, addr);
 }
 
@@ -1055,7 +1055,7 @@ static void
 OP_JSR(r2A03 *cpu)
 {
 	push16(cpu, cpu->PC - 1);
-	cpu->PC = get16(cpu, cpu->addr);
+	cpu->PC = cpu->addr;
 }
 
 static void
@@ -1335,5 +1335,4 @@ cpu_reset(r2A03 *cpu, bus *bus)
 	cpu->X = 0;
 	cpu->Y = 0;
 	cpu->stall = 0; /* TODO do we need it here? */
-	/* cpu_fetch_opcode */
 }
