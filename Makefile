@@ -1,4 +1,5 @@
 CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3
+LIBS = -lSDL2
 #-Werror
 
 all: options fami
@@ -12,10 +13,14 @@ options:
 	$(CC) -c $(CFLAGS) $<
 
 fami: bus.o cpu.o mem.o nes.o ppu.o
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ -fsanitize=address $(LIBS)
+
+test: cpu_test.o
+	$(CC) -o $@ $^ -lcriterion
 
 clean:
 	rm -f fami
+	rm -f test
 	rm -f *.o
 
 .PHONY: all options clean
