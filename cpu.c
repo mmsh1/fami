@@ -39,6 +39,8 @@ typedef struct {
 static uint8_t is_acc_mode(r2A03 *);
 static void disable_acc_mode(r2A03 *);
 
+static void disassemble(r2A03 *, uint8_t);
+
 static void write8_addr(r2A03 *, uint16_t, uint8_t);
 static void write8(r2A03 *, uint8_t);
 static void push8(r2A03 *, uint8_t);
@@ -55,6 +57,7 @@ static uint16_t read16_indirect(r2A03 *, uint16_t);
 static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t get_c(r2A03 *);
 static uint8_t get_z(r2A03 *);
+static uint8_t get_i(r2A03 *);
 static uint8_t get_v(r2A03 *);
 static uint8_t get_n(r2A03 *);
 
@@ -84,8 +87,9 @@ static void upd_zn(r2A03 *, uint8_t);
 
 static int overflowed_sum(uint8_t, uint8_t, uint8_t);
 static int overflowed_sub(uint8_t, uint8_t, uint8_t);
-/*static void setirq(r2A03 *, uint8_t);*/
-/*static void setnmi(r2A03 *, uint8_t);*/
+
+static void setirq(r2A03 *, uint8_t);
+static void setnmi(r2A03 *, uint8_t);
 
 static void ADDR_ABS(r2A03 *); /* absolute */
 static void ADDR_ACC(r2A03 *); /* accumulator */
@@ -574,6 +578,12 @@ get_n(r2A03 *cpu)
 }
 
 static uint8_t
+get_i(r2A03 *cpu)
+{
+	return getflag(cpu, MASK_INTERRUPT_DISABLE);
+}
+
+static uint8_t
 get_v(r2A03 *cpu)
 {
 	return getflag(cpu, MASK_OVERFLOW);
@@ -733,6 +743,21 @@ overflowed_sub(uint8_t a, uint8_t b, uint8_t c)
 	 * like overflowed_sum but for subtraction
 	 */
 	return (((a ^ b) & 0x80) != 0 && ((a ^ c) & 0x80) != 0);
+}
+
+static void
+setirq(r2A03 *cpu, uint8_t val)
+{
+	/* maskable */
+	if (get_i(cpu)) {
+		return;
+	}
+}
+
+static void
+setnmi(r2A03 *cpu, uint8_t val)
+{
+	/* non maskable */
 }
 
 static void
@@ -1285,15 +1310,6 @@ OP_ILL(r2A03 *cpu)
 	return;
 }
 
-/* TODO debug stuff */
-static void
-print_internals(r2A03 *cpu)
-{
-	fprintf(stderr, "INFO: CURRENT PC: %u\n", cpu->PC);
-	fprintf(stderr, "INFO: CURRENT TOTAL: %lu\n", cpu->total);
-	fprintf(stderr, "INFO: CURRENT STALL: %lu\n", cpu->stall);
-}
-
 void
 cpu_tick(r2A03 *cpu)
 {
@@ -1312,12 +1328,9 @@ cpu_tick(r2A03 *cpu)
 	/* if irq -> cpu_setirq */
 	/* if nmi -> cpu_setnmi */
 
-	fprintf(stderr, "cpu->PC: %d\n", cpu->PC);
 	opcode = read8(cpu);
 
-	fprintf(stderr, "idx: %d, ", optable[opcode].idx);   /* TODO remove later */
-	fprintf(stderr, "name: %s\n", optable[opcode].name); /* TODO remove later */
-
+	disassemble(cpu, opcode);
 	cpu->total += optable[opcode].cycles;
 
 	optable[opcode].mode(cpu);
@@ -1335,4 +1348,45 @@ cpu_reset(r2A03 *cpu, bus *bus)
 	cpu->X = 0;
 	cpu->Y = 0;
 	cpu->stall = 0; /* TODO do we need it here? */
+}
+
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+#define ANSI_BOLD_ON  "\033[1m"
+#define ANSI_BOLD_OFF "\033[0m"
+
+void
+disassemble(r2A03 *cpu, uint8_t opcode)
+{
+	uint16_t pc = cpu->PC;
+	uint8_t opc_idx = optable[opcode].idx;
+	const char *opc_name = optable[opcode].name;
+	addr_mode opc_addr = optable[opcode].func;
+	const char *opc_addr_name = NULL;
+
+	if (opc_addr == ADDR_ABS) opc_addr_name = "ADDR_ABS";
+	else if (opc_addr == ADDR_ACC) opc_addr_name = "ADDR_ACC";
+	else if (opc_addr == ADDR_IAX) opc_addr_name = "ADDR_IAX";
+	else if (opc_addr == ADDR_IAY) opc_addr_name = "ADDR_IAY";
+	else if (opc_addr == ADDR_IMM) opc_addr_name = "ADDR_IMM";
+	else if (opc_addr == ADDR_IMP) opc_addr_name = "ADDR_IMP";
+	else if (opc_addr == ADDR_IND) opc_addr_name = "ADDR_IND";
+	else if (opc_addr == ADDR_INX) opc_addr_name = "ADDR_INX";
+	else if (opc_addr == ADDR_INY) opc_addr_name = "ADDR_INY";
+	else if (opc_addr == ADDR_IZX) opc_addr_name = "ADDR_IZX";
+	else if (opc_addr == ADDR_IZY) opc_addr_name = "ADDR_IZY";
+	else if (opc_addr == ADDR_REL) opc_addr_name = "ADDR_REL";
+	else if (opc_addr == ADDR_ZPG) opc_addr_name = "ADDR_ZPG";
+	else opc_addr_name = "ADDR_ILL";
+	
+	fprintf(stderr, "%sPC%s: %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, pc);
+	fprintf(stderr, "%sOP%s: %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_name);
+	fprintf(stderr, "%sIDX%s: %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, opc_idx);
+	fprintf(stderr, "%sADDR%s: %s\n", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_addr_name);
 }
