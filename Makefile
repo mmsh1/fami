@@ -13,7 +13,7 @@ options:
 	$(CC) -c $(CFLAGS) $<
 
 fami: bus.o cpu.o mem.o nes.o ppu.o
-	$(CC) -o $@ $^ -fsanitize=address $(LIBS)
+	$(CC) -o $@ $^ $(LIBS) -fsanitize=address
 
 test: cpu_test.o
 	$(CC) -o $@ $^ -lcriterion
