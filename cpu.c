@@ -58,6 +58,7 @@ static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t get_c(r2A03 *);
 static uint8_t get_z(r2A03 *);
 static uint8_t get_i(r2A03 *);
+static uint8_t get_b(r2A03 *);
 static uint8_t get_v(r2A03 *);
 static uint8_t get_n(r2A03 *);
 
@@ -584,6 +585,12 @@ get_i(r2A03 *cpu)
 }
 
 static uint8_t
+get_b(r2A03 *cpu)
+{
+	return getflag(cpu, MASK_BREAK);
+}
+
+static uint8_t
 get_v(r2A03 *cpu)
 {
 	return getflag(cpu, MASK_OVERFLOW);
@@ -996,7 +1003,7 @@ OP_CMP(r2A03 *cpu)
 	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->A >= val);
 	upd_z(cpu, cpu->A == val);
-	upd_n(cpu, (cpu->A - val) & 0x80);
+	upd_n(cpu, (cpu->A - val) & MASK_NEGATIVE);
 }
 
 static void
@@ -1005,7 +1012,7 @@ OP_CPX(r2A03 *cpu)
 	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->X >= val);
 	upd_z(cpu, cpu->X == val);
-	upd_n(cpu, (cpu->X - val) & 0x80);
+	upd_n(cpu, (cpu->X - val) & MASK_NEGATIVE);
 }
 
 static void
@@ -1014,7 +1021,7 @@ OP_CPY(r2A03 *cpu)
 	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->Y >= val);
 	upd_z(cpu, cpu->Y == val);
-	upd_n(cpu, (cpu->Y - val) & 0x80);
+	upd_n(cpu, (cpu->Y - val) & MASK_NEGATIVE);
 }
 
 static void
@@ -1350,14 +1357,6 @@ cpu_reset(r2A03 *cpu, bus *bus)
 	cpu->stall = 0; /* TODO do we need it here? */
 }
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_YELLOW  "\x1b[33m"
-#define ANSI_COLOR_BLUE    "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
-
 #define ANSI_BOLD_ON  "\033[1m"
 #define ANSI_BOLD_OFF "\033[0m"
 
@@ -1365,6 +1364,7 @@ void
 disassemble(r2A03 *cpu, uint8_t opcode)
 {
 	uint16_t pc = cpu->PC;
+	uint16_t arg = cpu->addr;
 	uint8_t opc_idx = optable[opcode].idx;
 	const char *opc_name = optable[opcode].name;
 	addr_mode opc_addr = optable[opcode].func;
@@ -1385,8 +1385,21 @@ disassemble(r2A03 *cpu, uint8_t opcode)
 	else if (opc_addr == ADDR_ZPG) opc_addr_name = "ADDR_ZPG";
 	else opc_addr_name = "ADDR_ILL";
 	
-	fprintf(stderr, "%sPC%s: %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, pc);
-	fprintf(stderr, "%sOP%s: %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_name);
-	fprintf(stderr, "%sIDX%s: %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, opc_idx);
-	fprintf(stderr, "%sADDR%s: %s\n", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_addr_name);
+	fprintf(stderr, "%sPC:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, pc);
+	fprintf(stderr, "%sOP:%s %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_name);
+	fprintf(stderr, "%sIDX:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, opc_idx);
+	fprintf(stderr, "%sADDR:%s %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_addr_name);
+	fprintf(stderr, "%sARG:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, arg);
+
+	fprintf(stderr, "%sA:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->A);
+	fprintf(stderr, "%sX:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->X);
+	fprintf(stderr, "%sY:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->Y);
+	fprintf(stderr, "%sSP:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->SP);
+
+	fprintf(stderr, "%s C:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_c(cpu));
+	fprintf(stderr, "%s Z:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_z(cpu));
+	fprintf(stderr, "%s I:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_i(cpu));
+	fprintf(stderr, "%s B:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_b(cpu));
+	fprintf(stderr, "%s O:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_v(cpu));
+	fprintf(stderr, "%s N:%s %*d\n", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_n(cpu));
 }
