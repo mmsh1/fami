@@ -1384,12 +1384,12 @@ disassemble(r2A03 *cpu, uint8_t opcode)
 	else if (opc_addr == ADDR_REL) opc_addr_name = "ADDR_REL";
 	else if (opc_addr == ADDR_ZPG) opc_addr_name = "ADDR_ZPG";
 	else opc_addr_name = "ADDR_ILL";
-	
-	fprintf(stderr, "%sPC:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, pc);
+
+	fprintf(stderr, "%sPC:%s %*X ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, pc);
 	fprintf(stderr, "%sOP:%s %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_name);
-	fprintf(stderr, "%sIDX:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, opc_idx);
+	fprintf(stderr, "%sIDX:%s %*X ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, opc_idx);
 	fprintf(stderr, "%sADDR:%s %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_addr_name);
-	fprintf(stderr, "%sARG:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, arg);
+	fprintf(stderr, "%sARG:%s %*X ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, arg);
 
 	fprintf(stderr, "%sA:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->A);
 	fprintf(stderr, "%sX:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->X);
