@@ -1,48 +1,27 @@
+#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
+
+#include <SDL2/SDL.h>
 
 #include "bus.h"
+#include "cartrige.h"
+
 
 typedef struct {
 	/* r2A03 apu */
 	bus bus;
 	r2A03 cpu;
 	r2C02 ppu;
+	cartrige rom;
 	uint8_t ram[RAM_SIZE];
 } nes;
 
 static double fps_ntsc = 60.0988;
 
-static long int
-nes_get_romsize(FILE *rom)
-{
-	int64_t size;
-
-	fseek(rom, 0, SEEK_END);
-	size = ftell(rom);
-	fseek(rom, 0, SEEK_SET);
-	return size;
-}
-
-static int
+static void
 nes_loadrom(nes *n, const char *path)
 {
-	FILE *rom = NULL;
-	uint64_t readed;
-	int64_t size;
-
-	rom = fopen(path, "r");
-	if (rom == NULL) {
-		fprintf(stderr, "ROM NOT OPENED!\n");
-		return -1; /* TODO rewrite */
-	}
-
-	/* NOTE now we believe that rom size will fit in our buffer */
-	/* TODO rewrite it! */
-	size = nes_get_romsize(rom);
-	readed = fread(&n->ram[0x8000], size, 1, rom);
-	fclose(rom);
-	return 0;
+	n->rom = cartrige_create(path);
 }
 
 static void
@@ -70,39 +49,32 @@ nes_init(nes *n)
 {
 	bus_init(&n->bus, &n->cpu, n->ram);
 	bus_cpu_reset(&n->bus);
-	bus_ram_reset(&n->bus);
+	/* bus_ram_reset(&n->bus); */
 	bus_ppu_reset(&n->bus);
+}
+
+static void
+nes_run_loop(nes *n)
+{
+	while (1) {
+		nes_run(n);
+		SDL_Delay(100);
+	}
 }
 
 int
 main(int argc, char **argv)
 {
-	nes n;
-	char *filename = NULL;
+	nes n = {0};
 
-	/*if (argc != 2) {
-		fprintf(stderr, "ERROR: WRONG ARGUMENTS!\n");
+	if (argc != 2) {
+		fprintf(stderr, "usage: ./fami romfile\n");
 		exit(EXIT_FAILURE);
 	}
 
-	filename = argv[1];*/
-
+	nes_loadrom(&n, argv[1]);
 	nes_init(&n);
-	/* nes_loadrom(&n, filename); */
 
-	n.ram[0xFFFC] = 0xA9;
-	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFC], 0xFFFC);
-	n.ram[0xFFFD] = 0x88;
-	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFD], 0xFFFD);
-	n.ram[0xFFFE] = 0xE0;
-	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFE], 0xFFFE);
-	n.ram[0xFFFF] = 0xF8;
-	fprintf(stderr, "%X PLACED IN %X\n", n.ram[0xFFFF], 0xFFFF);
-
-	nes_run(&n);
-	nes_run(&n);
-	nes_run(&n);
-	nes_run(&n);
-
+	nes_run_loop(&n);
 	return 0;
 }

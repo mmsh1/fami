@@ -12,8 +12,8 @@ options:
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-fami: bus.o cpu.o mem.o nes.o ppu.o
-	$(CC) -o $@ $^ $(LIBS) -fsanitize=address
+fami: bus.o cartrige.o cpu.o ines.o mem.o nes.o ppu.o
+	$(CC) -o $@ $^ $(LIBS) -fsanitize=address -fsanitize=undefined
 
 test: cpu_test.o
 	$(CC) -o $@ $^ -lcriterion

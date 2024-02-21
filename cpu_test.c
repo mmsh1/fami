@@ -91,6 +91,19 @@ Test(cpu, lda_zpg) {
 	cr_assert(eq(u8, cpu.A, 0x55));
 }
 
+Test(cpu, sty_zpg) {
+	r2A03 cpu = {0};
+	uint8_t dummy_rom[] = {0x84, 0x10, 0x00}; /* 0x84 - STY ZPG */
+
+	load_dummy_rom(cpu.bus, dummy_rom, 3);
+	write_dummy_reset(cpu.bus, 0x8000);
+	
+	cpu_reset(&cpu, cpu.bus);
+	cpu.Y = 42;
+	cpu_tick(&cpu);
+	cr_assert(eq(u8, bus_ram_read(cpu.bus, 0x10), cpu.Y));
+}
+
 Test(cpu, sta_zpg) {
 	r2A03 cpu = {0};
 	uint8_t dummy_rom[] = {0x85, 0x10, 0x00}; /* 0x85 - STA ZPG */
@@ -115,17 +128,4 @@ Test(cpu, stx_zpg) {
 	cpu.X = 42;
 	cpu_tick(&cpu);
 	cr_assert(eq(u8, bus_ram_read(cpu.bus, 0x10), cpu.X));
-}
-
-Test(cpu, sty_zpg) {
-	r2A03 cpu = {0};
-	uint8_t dummy_rom[] = {0x84, 0x10, 0x00}; /* 0x84 - STY ZPG */
-
-	load_dummy_rom(cpu.bus, dummy_rom, 3);
-	write_dummy_reset(cpu.bus, 0x8000);
-	
-	cpu_reset(&cpu, cpu.bus);
-	cpu.Y = 42;
-	cpu_tick(&cpu);
-	cr_assert(eq(u8, bus_ram_read(cpu.bus, 0x10), cpu.Y));
 }
