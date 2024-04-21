@@ -1,12 +1,14 @@
+#include <stdio.h>  /* TODO remove */
+#include <stdlib.h> /* TODO remove */
+
 #include "bus.h"
-#include "cpu.h"
-#include "ppu.h"
 
 void
-bus_init(bus *b, r2A03 *c, uint8_t *r)
+bus_init(bus *bus, r2A03 *cpu, uint8_t *ram, cartrige rom)
 {
-	b->cpu = c;
-	b->ram = r;
+	bus->cpu = cpu;
+	bus->ram = ram;
+	bus->rom = rom;
 }
 
 void
@@ -42,16 +44,27 @@ bus_ram_reset(bus *b)
 uint8_t
 bus_ram_read(bus *b, uint16_t addr)
 {
-	if (addr >= 0x0000 && addr <= 0xFFFF) {
+	if (addr >= 0x0000 && addr < 0x8000) {
 		return b->ram[addr]; /* TODO add check */
 	}
+	
+	if (addr >= 0x8000 && addr <= 0xFFFF) {
+		return 0; /* read from rom */
+	}
+
 	return 0; //TODO create error value
 }
 
 void
 bus_ram_write(bus *b, uint16_t addr, uint8_t val)
 {
-	if (addr >= 0x0000 && addr <= 0xFFFF) {
+	if (addr >= 0x0000 && addr < 0x8000) {
 		b->ram[addr] = val; /* TODO add check */
+		return;
+	}
+
+	if (addr >= 0x8000 && addr <= 0xFFFF) {
+		fprintf(stderr, "trying to write to cartrige rom space\n"); /* TODO remove */
+		exit(1); /* TODO replace with assert? */
 	}
 }

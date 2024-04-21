@@ -47,7 +47,7 @@ nes_run(nes *n)
 static void
 nes_init(nes *n)
 {
-	bus_init(&n->bus, &n->cpu, n->ram);
+	bus_init(&n->bus, &n->cpu, n->ram, n->rom);
 	bus_cpu_reset(&n->bus);
 	/* bus_ram_reset(&n->bus); */
 	bus_ppu_reset(&n->bus);

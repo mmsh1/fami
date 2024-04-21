@@ -5,36 +5,89 @@
 #include "cartrige.h"
 #include "ines.h"
 
-static long int
-get_romsize(FILE *rom)
-{
-	int64_t size;
+enum {
+	PRG_ROM_BANK_SIZE = 0x4000,
+	CHR_ROM_BANK_SIZE = 0x2000,
+	CHR_RAM_BANK_SIZE = 0x2000,
+};
 
-	fseek(rom, 0, SEEK_END);
-	size = ftell(rom);
-	fseek(rom, 0, SEEK_SET);
-	return size;
+static mirroring_type
+get_mirroring_type(uint8_t ctl)
+{
+	uint8_t mirroring = ctl & 0x1;
+	if (mirroring == 0x0) return HORIZONTAL_MIRRORING;
+	if (mirroring == 0x1) return VERTICAL_MIRRORING;
+	return INVALID_MIRRORING;
 }
 
 cartrige
 cartrige_create(const char *path)
 {
 	FILE *rom = NULL;
-	int64_t size;
+	struct ines_header header;
+	mirroring_type mirroring;
+	uint8_t *prg, *chr;
+	/*uint8_t prg_size chr_size*/;
 
-	rom = fopen(path, "r");
+	rom = fopen(path, "rb");
 	if (rom == NULL) {
-		fprintf(stderr, "ROM NOT OPENED!\n");
-		exit(1); /* TODO don't exit here! create an error field in cartrige struct */
+		fprintf(stderr, "ROM NOT OPENED!\n"); /* TODO wrap */
+		return (cartrige){
+			.invalid = 1
+		};
 	}
-
-	/* NOTE now we believe that rom size will fit in our buffer */
-	/* TODO rewrite it! */
-	size = get_romsize(rom);
-	fprintf(stderr, "romsize: %lu\n", size);
-	fclose(rom);
 
 	/* TODO */
 	/* extract contents of rom according to ines layout */
-	return (cartrige){};
+
+	/* check ines tag */
+	fread(&header, sizeof(uint8_t), 16, rom);
+	if (!is_valid_ines_tag(header.magic)) {
+		fclose(rom);
+		fprintf(stderr, "ROM is not an iNES image.\n");  /* TODO wrap */
+		return (cartrige){
+			.invalid = 1
+		};
+	}
+
+	/* get mapper */
+	/* check ines version (1.0 / 2.0) */
+
+	/* get mirroring */
+	mirroring = get_mirroring_type(header.flags6);
+	if (mirroring == INVALID_MIRRORING) {
+		fclose(rom);
+		fprintf(stderr, "Invalid mirroring type.\n");  /* TODO wrap */
+		return (cartrige){
+			.invalid = 1
+		};
+	}
+
+	/* allocate prg */
+	prg = calloc(header.prg_rom_size * PRG_ROM_BANK_SIZE, sizeof(uint8_t));
+	if (!prg) {
+		exit(1);
+	}
+
+	/* allocate chr */
+	chr = calloc(header.chr_rom_size * CHR_ROM_BANK_SIZE, sizeof(uint8_t));
+	if (!chr) {
+		free(prg);
+		exit(1);
+	}
+
+	fread(prg, sizeof(uint8_t), header.prg_rom_size * PRG_ROM_BANK_SIZE, rom);
+	fread(chr, sizeof(uint8_t), header.chr_rom_size * CHR_ROM_BANK_SIZE, rom);
+
+	return (cartrige){
+		.prg = prg,
+		.chr = chr,
+		.prg_size = header.prg_rom_size,
+		.chr_size = header.chr_rom_size
+	};
+}
+
+uint8_t
+cartrige_read(cartrige *cartrige, uint16_t addr)
+{
 }
