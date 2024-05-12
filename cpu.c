@@ -1339,7 +1339,7 @@ cpu_reset(r2A03 *cpu, bus *bus)
 	/* cpu->PC = get16_addr(cpu, VECTOR_RESET); */
 	cpu->PC = 0xC000; /* only for nestest! TODO remove! */
 	cpu->SP = 0xFD;   /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
-	cpu->P = 0;
+	cpu->P = 0x24;
 	cpu->A = 0;
 	cpu->X = 0;
 	cpu->Y = 0;
@@ -1357,7 +1357,7 @@ typedef union {
 static disassemble_arg
 disassemble_get_arg(r2A03 *cpu, addr_mode amode)
 {
-	disassemble_arg arg;
+	disassemble_arg arg = {0};
 
 	if (amode == ADDR_ABS) {
 		arg.whole = get16_addr(cpu, cpu->PC + 1);
@@ -1368,7 +1368,7 @@ disassemble_get_arg(r2A03 *cpu, addr_mode amode)
 	} else if (amode == ADDR_IAY) {
 		arg.whole = get16_addr(cpu, cpu->PC + 1) + cpu->Y;
 	} else if (amode == ADDR_IMM) {
-		arg.whole = cpu->PC + 1;
+		arg.part.lo = get8_addr(cpu, cpu->PC + 1);
 	} else if (amode == ADDR_IMP) {
 		arg.whole = 0;
 	} else if (amode == ADDR_IND) {
@@ -1401,7 +1401,8 @@ disassemble_get_arg(r2A03 *cpu, addr_mode amode)
 static void
 disassemble_compose_asm_str(r2A03 *cpu, uint8_t opcode, char strbuf[])
 {
-	char *curr = strbuf, *end = strbuf + ASM_STR_SIZE;
+	char *curr = strbuf;
+	char *end = strbuf + ASM_STR_SIZE;
 	disassemble_arg arg = disassemble_get_arg(cpu, optable[opcode].mode);
 	
 	curr += snprintf(curr, end - curr, "%02X ", optable[opcode].idx);
