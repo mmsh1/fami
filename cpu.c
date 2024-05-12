@@ -32,6 +32,7 @@ typedef struct {
 	uint8_t idx;
 	const char *name;
 	opcode_func func;
+	uint8_t size;
 	uint8_t cycles;
 	addr_mode mode;
 } instruction;
@@ -39,7 +40,7 @@ typedef struct {
 static uint8_t is_acc_mode(r2A03 *);
 static void disable_acc_mode(r2A03 *);
 
-static void disassemble(r2A03 *, uint8_t);
+static void disassemble(r2A03 *);
 
 static void write8_addr(r2A03 *, uint16_t, uint8_t);
 static void write8(r2A03 *, uint8_t);
@@ -50,6 +51,7 @@ static uint8_t get8(r2A03 *);
 static uint8_t read8(r2A03 *);
 static uint8_t read8_indirect(r2A03 *, uint16_t);
 static uint8_t pop8(r2A03 *);
+static uint16_t get16_addr(r2A03 *, uint16_t);
 static uint16_t pop16(r2A03 *);
 static uint16_t read16(r2A03 *);
 static uint16_t read16_indirect(r2A03 *, uint16_t);
@@ -506,7 +508,7 @@ get8(r2A03 *cpu)
 }
 
 static uint16_t
-get16(r2A03 *cpu, uint16_t addr)
+get16_addr(r2A03 *cpu, uint16_t addr)
 {
 	uint8_t lo = get8_addr(cpu, addr);
 	uint8_t hi = get8_addr(cpu, addr + 1); /* TODO check address somehow */
@@ -827,13 +829,13 @@ ADDR_INY(r2A03 *cpu)
 static void
 ADDR_IZX(r2A03 *cpu)
 {
-	cpu->addr = read8(cpu) + cpu->X & 0x00FF;
+	cpu->addr = (read8(cpu) + cpu->X) & 0x00FF;
 }
 
 static void
 ADDR_IZY(r2A03 *cpu)
 {
-	cpu->addr = read8(cpu) + cpu->Y & 0x00FF;
+	cpu->addr = (read8(cpu) + cpu->Y) & 0x00FF;
 }
 
 static void
@@ -954,7 +956,7 @@ OP_BRK(r2A03 *cpu)
 	push16(cpu, cpu->PC);
 	set_b(cpu);
 	push8(cpu, cpu->P);
-	cpu->PC = get16(cpu, VECTOR_IRQ);
+	cpu->PC = get16_addr(cpu, VECTOR_IRQ);
 }
 
 static void
@@ -1320,36 +1322,23 @@ OP_ILL(r2A03 *cpu)
 void
 cpu_tick(r2A03 *cpu)
 {
-	uint8_t opcode;
-	uint64_t cycles;
-
-	if (cpu->stall > 0) {
-		fprintf(stderr, "return on stall\n"); /* TODO remove */
-		cpu->stall--;
-		return;
-	}
-
-	cycles = cpu->total;
-
 	/* poll interrupts here */
 	/* if irq -> cpu_setirq */
 	/* if nmi -> cpu_setnmi */
 
-	opcode = read8(cpu);
-
-	disassemble(cpu, opcode);
-	cpu->total += optable[opcode].cycles;
-
-	optable[opcode].mode(cpu);
-	optable[opcode].func(cpu);
+	disassemble(cpu);
+	cpu->opcode = read8(cpu);
+	optable[cpu->opcode].mode(cpu);
+	optable[cpu->opcode].func(cpu);
 }
 
 void
 cpu_reset(r2A03 *cpu, bus *bus)
 {
 	cpu->bus = bus;
-	cpu->PC = get16(cpu, VECTOR_RESET);
-	cpu->SP = 0xFD; /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
+	/* cpu->PC = get16_addr(cpu, VECTOR_RESET); */
+	cpu->PC = 0xC000; /* only for nestest! TODO remove! */
+	cpu->SP = 0xFD;   /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
 	cpu->P = 0;
 	cpu->A = 0;
 	cpu->X = 0;
@@ -1357,49 +1346,93 @@ cpu_reset(r2A03 *cpu, bus *bus)
 	cpu->stall = 0; /* TODO do we need it here? */
 }
 
-#define ANSI_BOLD_ON  "\033[1m"
-#define ANSI_BOLD_OFF "\033[0m"
+typedef union {
+	uint16_t whole;
+	struct {
+		uint8_t lo;
+		uint8_t hi;
+	} part;
+} disassemble_arg;
 
-void
-disassemble(r2A03 *cpu, uint8_t opcode)
+static disassemble_arg
+disassemble_get_arg(r2A03 *cpu, addr_mode amode)
 {
-	uint16_t pc = cpu->PC;
-	uint16_t arg = cpu->addr;
-	uint8_t opc_idx = optable[opcode].idx;
-	const char *opc_name = optable[opcode].name;
-	addr_mode opc_addr = optable[opcode].func;
-	const char *opc_addr_name = NULL;
+	disassemble_arg arg;
 
-	if (opc_addr == ADDR_ABS) opc_addr_name = "ADDR_ABS";
-	else if (opc_addr == ADDR_ACC) opc_addr_name = "ADDR_ACC";
-	else if (opc_addr == ADDR_IAX) opc_addr_name = "ADDR_IAX";
-	else if (opc_addr == ADDR_IAY) opc_addr_name = "ADDR_IAY";
-	else if (opc_addr == ADDR_IMM) opc_addr_name = "ADDR_IMM";
-	else if (opc_addr == ADDR_IMP) opc_addr_name = "ADDR_IMP";
-	else if (opc_addr == ADDR_IND) opc_addr_name = "ADDR_IND";
-	else if (opc_addr == ADDR_INX) opc_addr_name = "ADDR_INX";
-	else if (opc_addr == ADDR_INY) opc_addr_name = "ADDR_INY";
-	else if (opc_addr == ADDR_IZX) opc_addr_name = "ADDR_IZX";
-	else if (opc_addr == ADDR_IZY) opc_addr_name = "ADDR_IZY";
-	else if (opc_addr == ADDR_REL) opc_addr_name = "ADDR_REL";
-	else if (opc_addr == ADDR_ZPG) opc_addr_name = "ADDR_ZPG";
-	else opc_addr_name = "ADDR_ILL";
+	if (amode == ADDR_ABS) {
+		arg.whole = get16_addr(cpu, cpu->PC + 1);
+	} else if (amode == ADDR_ACC) {
+		arg.whole = 0xA;
+	} else if (amode == ADDR_IAX) {
+		arg.whole = get16_addr(cpu, cpu->PC + 1) + cpu->X;
+	} else if (amode == ADDR_IAY) {
+		arg.whole = get16_addr(cpu, cpu->PC + 1) + cpu->Y;
+	} else if (amode == ADDR_IMM) {
+		arg.whole = cpu->PC + 1;
+	} else if (amode == ADDR_IMP) {
+		arg.whole = 0;
+	} else if (amode == ADDR_IND) {
+		uint16_t location = get16_addr(cpu, cpu->PC + 1);
+		arg.whole = get16_addr(cpu, location);
+	} else if (amode == ADDR_INX) {
+		uint8_t location = get8_addr(cpu, cpu->PC + 1);
+		arg.whole = get16_addr(cpu, location + cpu->X);
+	} else if (amode == ADDR_INY) {
+		uint8_t location = get8_addr(cpu, cpu->PC + 1);
+		arg.whole = get8_addr(cpu, location + (cpu->Y & 0x00FF));
+	} else if (amode == ADDR_IZX) {
+		arg.whole = get8_addr(cpu, cpu->PC + 1) + (cpu->X & 0x00FF);
+	} else if (amode == ADDR_IZY) {
+		arg.whole = get8_addr(cpu, cpu->PC + 1) + (cpu->Y & 0x00FF);
+	} else if (amode == ADDR_REL) {
+		int8_t offset = (int8_t)get8_addr(cpu, cpu->PC + 1);
+		arg.whole = cpu->PC + offset;
+	} else if (amode == ADDR_ZPG) {
+		arg.whole = get8_addr(cpu, cpu->PC + 1) | 0x0000;
+	} else {
+		arg.whole = 0;
+	}
 
-	fprintf(stderr, "%sPC:%s %*X ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, pc);
-	fprintf(stderr, "%sOP:%s %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_name);
-	fprintf(stderr, "%sIDX:%s %*X ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, opc_idx);
-	fprintf(stderr, "%sADDR:%s %s ", ANSI_BOLD_ON, ANSI_BOLD_OFF, opc_addr_name);
-	fprintf(stderr, "%sARG:%s %*X ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 5, arg);
+	return arg;
+}
 
-	fprintf(stderr, "%sA:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->A);
-	fprintf(stderr, "%sX:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->X);
-	fprintf(stderr, "%sY:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->Y);
-	fprintf(stderr, "%sSP:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 3, cpu->SP);
+#define ASM_STR_SIZE 25
 
-	fprintf(stderr, "%s C:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_c(cpu));
-	fprintf(stderr, "%s Z:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_z(cpu));
-	fprintf(stderr, "%s I:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_i(cpu));
-	fprintf(stderr, "%s B:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_b(cpu));
-	fprintf(stderr, "%s O:%s %*d ", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_v(cpu));
-	fprintf(stderr, "%s N:%s %*d\n", ANSI_BOLD_ON, ANSI_BOLD_OFF, 2, get_n(cpu));
+static void
+disassemble_compose_asm_str(r2A03 *cpu, uint8_t opcode, char strbuf[])
+{
+	char *curr = strbuf, *end = strbuf + ASM_STR_SIZE;
+	disassemble_arg arg = disassemble_get_arg(cpu, optable[opcode].mode);
+	
+	curr += snprintf(curr, end - curr, "%02X ", optable[opcode].idx);
+	if (arg.part.hi != 0) {
+		curr += snprintf(curr, end - curr, "%02X %02X ",  arg.part.lo, arg.part.hi);
+	} else {
+		curr += snprintf(curr, end - curr, "%02X    ",  arg.part.lo);
+	}
+	curr += snprintf(curr, end - curr, "%s ", optable[opcode].name);
+	curr += snprintf(curr, end - curr, "%*X  ", 5, arg.whole);
+}
+
+/* Using nestest log format for easy comparision with nestest.log.
+ * See:
+ * https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.log
+ */
+static void
+disassemble(r2A03 *cpu)
+{
+	uint8_t opcode = get8_addr(cpu, cpu->PC);
+	char asm_str[ASM_STR_SIZE];
+
+	fprintf(stderr, "%X  ", cpu->PC);
+	disassemble_compose_asm_str(cpu, opcode, asm_str);
+	fprintf(stderr, "%s ", asm_str);
+
+	fprintf(stderr, "A:%02X ", cpu->A);
+	fprintf(stderr, "X:%02X ", cpu->X);
+	fprintf(stderr, "Y:%02X ", cpu->Y);
+	fprintf(stderr, "P:%02X ", cpu->P);
+	fprintf(stderr, "SP:%02X ", cpu->SP);
+	fprintf(stderr, "PPU:%*d,%*d ", 3, 3, 0, 0); /* TODO fix it */
+	fprintf(stderr, "CYC:%lu\n", cpu->total);
 }

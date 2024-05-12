@@ -13,8 +13,8 @@ typedef enum {
 } mirroring_type;
 
 typedef struct {
-	uint8_t *prg;
-	uint8_t *chr;
+	uint8_t *prg; /* code section */
+	uint8_t *chr; /* graphics section */
 	uint8_t prg_size;
 	uint8_t chr_size;
 	mirroring_type mirroring;

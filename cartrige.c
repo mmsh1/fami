@@ -20,6 +20,15 @@ get_mirroring_type(uint8_t ctl)
 	return INVALID_MIRRORING;
 }
 
+static uint16_t
+get_addr_offset(cartrige *cartrige)
+{
+	if (cartrige->prg_size > 1) {
+		return 0x7FFF;
+	}
+	return 0x3FFF;
+}
+
 cartrige
 cartrige_create(const char *path)
 {
@@ -27,7 +36,6 @@ cartrige_create(const char *path)
 	struct ines_header header;
 	mirroring_type mirroring;
 	uint8_t *prg, *chr;
-	/*uint8_t prg_size chr_size*/;
 
 	rom = fopen(path, "rb");
 	if (rom == NULL) {
@@ -90,4 +98,10 @@ cartrige_create(const char *path)
 uint8_t
 cartrige_read(cartrige *cartrige, uint16_t addr)
 {
+	if (addr >= 0x8000 && addr <= 0xFFFF) {
+		addr &= get_addr_offset(cartrige);
+		return cartrige->prg[addr];
+	}
+
+	return 0; // TODO how can we handle this?
 }

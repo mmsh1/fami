@@ -49,7 +49,7 @@ bus_ram_read(bus *b, uint16_t addr)
 	}
 	
 	if (addr >= 0x8000 && addr <= 0xFFFF) {
-		return 0; /* read from rom */
+		return cartrige_read(&b->rom, addr);
 	}
 
 	return 0; //TODO create error value
