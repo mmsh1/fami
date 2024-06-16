@@ -341,7 +341,7 @@ optable[0xFF + 1] = {
 	{ .idx = 0x9E, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 	{ .idx = 0x9F, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
 
-	{ .idx = 0xA0, .name = "LDY", .func = OP_LDY, .cycles = 2, .mode = ADDR_REL },
+	{ .idx = 0xA0, .name = "LDY", .func = OP_LDY, .cycles = 2, .mode = ADDR_IMM },
 	{ .idx = 0xA1, .name = "LDA", .func = OP_LDA, .cycles = 6, .mode = ADDR_INX },
 	{ .idx = 0xA2, .name = "LDX", .func = OP_LDX, .cycles = 2, .mode = ADDR_IMM },
 	{ .idx = 0xA3, .name = "ILL", .func = OP_ILL, .cycles = 0, .mode = ADDR_ILL },
@@ -511,7 +511,7 @@ static uint16_t
 get16_addr(r2A03 *cpu, uint16_t addr)
 {
 	uint8_t lo = get8_addr(cpu, addr);
-	uint8_t hi = get8_addr(cpu, addr + 1); /* TODO check address somehow */
+	uint8_t hi = get8_addr(cpu, addr + 1); /* TODO: check address somehow */
 	return (hi << 8) | lo;
 }
 
@@ -554,7 +554,7 @@ read16(r2A03 *cpu)
 static uint16_t
 read16_indirect(r2A03 *cpu, uint16_t addr)
 {
-	/* TODO handle edge case:
+	/* TODO: handle edge case:
 	* uint8_t hi = read8_indirect(cpu, addr & 0xFF00) | ((addr + 1) & 0x00FF);
 	* https://www.reddit.com/r/EmuDev/comments/fi29ah/6502_jump_indirect_error/ */
 	uint8_t lo = read8_indirect(cpu, addr);
@@ -865,9 +865,9 @@ OP_ADC(r2A03 *cpu)
 
 	cpu->A = acc + val + carry;
 
-	upd_c(cpu, (int)acc + (int)val + (int)carry > 0xFF); /* TODO? create func detect_carry() */
+	upd_c(cpu, (int)acc + (int)val + (int)carry > 0xFF); /* TODO: create func detect_carry() */
 	upd_v(cpu, overflowed_sum(acc, val, cpu->A));
-	upd_zn(cpu, val);
+	upd_zn(cpu, cpu->A);
 }
 
 static void
@@ -937,7 +937,7 @@ OP_BMI(r2A03 *cpu)
 static void
 OP_BNE(r2A03 *cpu)
 {
-	if (!get_n(cpu)) {
+	if (!get_z(cpu)) {
 		cpu->PC = cpu->addr;
 	}
 }
@@ -1315,7 +1315,7 @@ OP_TYA(r2A03 *cpu)
 static void
 OP_ILL(r2A03 *cpu)
 {
-	fprintf(stderr, "illegal opcode!\n"); /* TODO remove */
+	fprintf(stderr, "illegal opcode!\n"); /* TODO: remove */
 	return;
 }
 
@@ -1337,13 +1337,13 @@ cpu_reset(r2A03 *cpu, bus *bus)
 {
 	cpu->bus = bus;
 	/* cpu->PC = get16_addr(cpu, VECTOR_RESET); */
-	cpu->PC = 0xC000; /* only for nestest! TODO remove! */
+	cpu->PC = 0xC000; /* only for nestest! TODO: remove! */
 	cpu->SP = 0xFD;   /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
 	cpu->P = 0x24;
 	cpu->A = 0;
 	cpu->X = 0;
 	cpu->Y = 0;
-	cpu->stall = 0; /* TODO do we need it here? */
+	cpu->stall = 0; /* TODO: do we need it here? */
 }
 
 typedef union {
@@ -1358,37 +1358,38 @@ static disassemble_arg
 disassemble_get_arg(r2A03 *cpu, addr_mode amode)
 {
 	disassemble_arg arg = {0};
+	uint16_t curr_pc = cpu->PC + 1;
 
 	if (amode == ADDR_ABS) {
-		arg.whole = get16_addr(cpu, cpu->PC + 1);
+		arg.whole = get16_addr(cpu, curr_pc);
 	} else if (amode == ADDR_ACC) {
 		arg.whole = 0xA;
 	} else if (amode == ADDR_IAX) {
-		arg.whole = get16_addr(cpu, cpu->PC + 1) + cpu->X;
+		arg.whole = get16_addr(cpu, curr_pc) + cpu->X;
 	} else if (amode == ADDR_IAY) {
-		arg.whole = get16_addr(cpu, cpu->PC + 1) + cpu->Y;
+		arg.whole = get16_addr(cpu, curr_pc) + cpu->Y;
 	} else if (amode == ADDR_IMM) {
-		arg.part.lo = get8_addr(cpu, cpu->PC + 1);
+		arg.part.lo = get8_addr(cpu, curr_pc);
 	} else if (amode == ADDR_IMP) {
 		arg.whole = 0;
 	} else if (amode == ADDR_IND) {
-		uint16_t location = get16_addr(cpu, cpu->PC + 1);
+		uint16_t location = get16_addr(cpu, curr_pc);
 		arg.whole = get16_addr(cpu, location);
 	} else if (amode == ADDR_INX) {
-		uint8_t location = get8_addr(cpu, cpu->PC + 1);
+		uint8_t location = get8_addr(cpu, curr_pc);
 		arg.whole = get16_addr(cpu, location + cpu->X);
 	} else if (amode == ADDR_INY) {
-		uint8_t location = get8_addr(cpu, cpu->PC + 1);
+		uint8_t location = get8_addr(cpu, curr_pc);
 		arg.whole = get8_addr(cpu, location + (cpu->Y & 0x00FF));
 	} else if (amode == ADDR_IZX) {
-		arg.whole = get8_addr(cpu, cpu->PC + 1) + (cpu->X & 0x00FF);
+		arg.whole = get8_addr(cpu, curr_pc) + (cpu->X & 0x00FF);
 	} else if (amode == ADDR_IZY) {
-		arg.whole = get8_addr(cpu, cpu->PC + 1) + (cpu->Y & 0x00FF);
+		arg.whole = get8_addr(cpu, curr_pc) + (cpu->Y & 0x00FF);
 	} else if (amode == ADDR_REL) {
-		int8_t offset = (int8_t)get8_addr(cpu, cpu->PC + 1);
-		arg.whole = cpu->PC + offset;
+		int8_t offset = (int8_t)get8_addr(cpu, curr_pc++);
+		arg.whole = curr_pc + offset;
 	} else if (amode == ADDR_ZPG) {
-		arg.whole = get8_addr(cpu, cpu->PC + 1) | 0x0000;
+		arg.whole = get8_addr(cpu, curr_pc) | 0x0000;
 	} else {
 		arg.whole = 0;
 	}
@@ -1434,6 +1435,6 @@ disassemble(r2A03 *cpu)
 	fprintf(stderr, "Y:%02X ", cpu->Y);
 	fprintf(stderr, "P:%02X ", cpu->P);
 	fprintf(stderr, "SP:%02X ", cpu->SP);
-	fprintf(stderr, "PPU:%*d,%*d ", 3, 3, 0, 0); /* TODO fix it */
+	fprintf(stderr, "PPU:%*d,%*d ", 3, 3, 0, 0); /* TODO: fix it */
 	fprintf(stderr, "CYC:%lu\n", cpu->total);
 }
