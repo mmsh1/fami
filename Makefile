@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3
+CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3 -Wconversion
 LIBS = -lSDL2
 #-Werror
 
@@ -16,7 +16,7 @@ fami: bus.o cartrige.o cpu.o ines.o mem.o nes.o ppu.o
 	$(CC) -o $@ $^ $(LIBS) -fsanitize=address -fsanitize=undefined
 
 test: cpu_test.o
-	$(CC) -o $@ $^ -lcriterion
+	$(CC) -o $@ $^ -lcriterion -Wl,-rpath-link, /usr/lib/libgit2.so
 
 clean:
 	rm -f fami
