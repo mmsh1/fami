@@ -88,8 +88,8 @@ static void upd_v(r2A03 *, uint8_t);
 static void upd_n(r2A03 *, uint8_t);
 static void upd_zn(r2A03 *, uint8_t);
 
-static int overflowed_sum(uint8_t, uint8_t, uint8_t);
-static int overflowed_sub(uint8_t, uint8_t, uint8_t);
+static uint8_t overflowed_sum(uint8_t, uint8_t, uint8_t);
+static uint8_t overflowed_sub(uint8_t, uint8_t, uint8_t);
 
 static void setirq(r2A03 *, uint8_t);
 static void setnmi(r2A03 *, uint8_t);
@@ -541,11 +541,11 @@ read8(r2A03 *cpu)
 	return get8_addr(cpu, cpu->PC++);
 }
 
-static uint8_t
-read8_indirect(r2A03 *cpu, uint16_t location)
-{
-	return get8_addr(cpu, location);
-}
+// static uint8_t
+// read8_indirect(r2A03 *cpu, uint16_t location)
+// {
+// 	return get8_addr(cpu, location);
+// }
 
 static uint8_t
 pop8(r2A03 *cpu)
@@ -571,13 +571,13 @@ read16(r2A03 *cpu)
 	return (hi << 8) | lo;
 }
 
-static uint16_t
-read16_indirect(r2A03 *cpu, uint16_t addr)
-{
-	uint8_t lo = read8_indirect(cpu, addr);
-	uint8_t hi = read8_indirect(cpu, addr + 1);
-	return (hi << 8) | lo;
-}
+// static uint16_t
+// read16_indirect(r2A03 *cpu, uint16_t addr)
+// {
+// 	uint8_t lo = read8_indirect(cpu, addr);
+// 	uint8_t hi = read8_indirect(cpu, addr + 1);
+// 	return (hi << 8) | lo;
+// }
 
 static uint8_t
 getflag(r2A03 *cpu, uint8_t mask)
@@ -752,23 +752,23 @@ upd_zn(r2A03 *cpu, uint8_t val)
 	upd_n(cpu, val & MASK_NEGATIVE); /* check if bit 7 of val is set */
 }
 
-static int
+static uint8_t
 overflowed_sum(uint8_t a, uint8_t b, uint8_t c)
 {
 	/*
 	 * returns 1 if A and B have the same sign
 	 * but A and C have different signs
 	 */
-	return (((a ^ b) & 0x80) == 0 && ((a ^ c) & 0x80) != 0);
+	return ((a ^ b) & 0x80) == 0 && ((a ^ c) & 0x80) != 0;
 }
 
-static int
+static uint8_t
 overflowed_sub(uint8_t a, uint8_t b, uint8_t c)
 {
 	/*
 	 * like overflowed_sum but for subtraction
 	 */
-	return (((a ^ b) & 0x80) != 0 && ((a ^ c) & 0x80) != 0);
+	return ((a ^ b) & 0x80) != 0 && ((a ^ c) & 0x80) != 0;
 }
 
 static void
@@ -1372,6 +1372,8 @@ OP_ANC(r2A03 *cpu)
 static void
 OP_DCP(r2A03 *cpu)
 {
+	OP_DEC(cpu);
+	OP_CMP(cpu);
 }
 
 static void
@@ -1387,6 +1389,9 @@ OP_LAS(r2A03 *cpu)
 static void
 OP_LAX(r2A03 *cpu)
 {
+	OP_LDA(cpu);
+	cpu->X = get8(cpu);
+	upd_zn(cpu, cpu->X);
 }
 
 static void
@@ -1407,6 +1412,7 @@ OP_RRA(r2A03 *cpu)
 static void
 OP_SAX(r2A03 *cpu)
 {
+	write8(cpu, cpu->A & cpu->X);
 }
 
 static void
@@ -1441,11 +1447,6 @@ OP_SRE(r2A03 *cpu)
 
 static void
 OP_TAS(r2A03 *cpu)
-{
-}
-
-static void
-OP_USBC(r2A03 *cpu)
 {
 }
 
