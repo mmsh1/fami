@@ -232,7 +232,7 @@ optable[0xFF + 1] = {
 	{ .idx = 0x24, .name = "BIT", .func = OP_BIT, .cycles = 3, .mode = ADDR_ZPG },
 	{ .idx = 0x25, .name = "AND", .func = OP_AND, .cycles = 3, .mode = ADDR_ZPG },
 	{ .idx = 0x26, .name = "ROL", .func = OP_ROL, .cycles = 5, .mode = ADDR_ZPG },
-	{ .idx = 0x27, .name = "RLA", .func = OP_RLA, .cycles = 0, .mode = ADDR_IZX },
+	{ .idx = 0x27, .name = "RLA", .func = OP_RLA, .cycles = 0, .mode = ADDR_ZPG },
 	{ .idx = 0x28, .name = "PLP", .func = OP_PLP, .cycles = 4, .mode = ADDR_IMP },
 	{ .idx = 0x29, .name = "AND", .func = OP_AND, .cycles = 2, .mode = ADDR_IMM },
 	{ .idx = 0x2A, .name = "ROL", .func = OP_ROL, .cycles = 2, .mode = ADDR_ACC },
@@ -1379,6 +1379,8 @@ OP_DCP(r2A03 *cpu)
 static void
 OP_ISC(r2A03 *cpu)
 {
+	OP_INC(cpu);
+	OP_SBC(cpu);
 }
 
 static void
@@ -1402,11 +1404,15 @@ OP_LXA(r2A03 *cpu)
 static void
 OP_RLA(r2A03 *cpu)
 {
+	OP_ROL(cpu);
+	OP_AND(cpu);
 }
 
 static void
 OP_RRA(r2A03 *cpu)
 {
+	OP_ROR(cpu);
+	OP_ADC(cpu);
 }
 
 static void
@@ -1438,11 +1444,15 @@ OP_SHY(r2A03 *cpu)
 static void
 OP_SLO(r2A03 *cpu)
 {
+	OP_ASL(cpu);
+	OP_ORA(cpu);
 }
 
 static void
 OP_SRE(r2A03 *cpu)
 {
+	OP_LSR(cpu);
+	OP_EOR(cpu);
 }
 
 static void
