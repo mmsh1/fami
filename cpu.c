@@ -427,7 +427,7 @@ optable[0xFF + 1] = {
 	{ .idx = 0xDC, .name = "NOP", .func = OP_NOP, .cycles = 0, .mode = ADDR_IAX },
 	{ .idx = 0xDD, .name = "CMP", .func = OP_CMP, .cycles = 4, .mode = ADDR_IAX },
 	{ .idx = 0xDE, .name = "DEC", .func = OP_DEC, .cycles = 7, .mode = ADDR_IAX },
-	{ .idx = 0xDF, .name = "ISC", .func = OP_ISC, .cycles = 0, .mode = ADDR_IAX },
+	{ .idx = 0xDF, .name = "DCP", .func = OP_DCP, .cycles = 0, .mode = ADDR_IAX },
 
 	{ .idx = 0xE0, .name = "CPX", .func = OP_CPX, .cycles = 2, .mode = ADDR_IMM },
 	{ .idx = 0xE1, .name = "SBC", .func = OP_SBC, .cycles = 6, .mode = ADDR_INX },
