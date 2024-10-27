@@ -49,37 +49,37 @@ static void push16(r2A03 *, uint16_t);
 static uint8_t get8_addr(r2A03 *, uint16_t);
 static uint8_t get8(r2A03 *);
 static uint8_t read8(r2A03 *);
-static uint8_t read8_indirect(r2A03 *, uint16_t);
+/* static uint8_t read8_indirect(r2A03 *, uint16_t); TODO: remove */
 static uint8_t pop8(r2A03 *);
 static uint16_t get16_addr(r2A03 *, uint16_t);
 static uint16_t pop16(r2A03 *);
 static uint16_t read16(r2A03 *);
-static uint16_t read16_indirect(r2A03 *, uint16_t);
+/* static uint16_t read16_indirect(r2A03 *, uint16_t); TODO: remove */
 
 static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t get_c(r2A03 *);
 static uint8_t get_z(r2A03 *);
 static uint8_t get_i(r2A03 *);
-static uint8_t get_b(r2A03 *);
+/* static uint8_t get_b(r2A03 *); TODO: remove */
 static uint8_t get_v(r2A03 *);
 static uint8_t get_n(r2A03 *);
 
 static void setflag(r2A03 *, uint8_t);
 static void set_c(r2A03 *);
-static void set_z(r2A03 *);
+/* static void set_z(r2A03 *); TODO: remove */
 static void set_i(r2A03 *);
 static void set_d(r2A03 *);
 static void set_b(r2A03 *);
-static void set_v(r2A03 *);
-static void set_n(r2A03 *);
+/* static void set_v(r2A03 *); TODO: remove */
+/* static void set_n(r2A03 *); TODO: remove */
 
 static void unsetflag(r2A03 *, uint8_t);
 static void unset_c(r2A03 *);
-static void unset_z(r2A03 *);
+/* static void unset_z(r2A03 *); TODO: remove */
 static void unset_i(r2A03 *);
 static void unset_d(r2A03 *);
 static void unset_v(r2A03 *);
-static void unset_n(r2A03 *);
+/* static void unset_n(r2A03 *); TODO: remove */
 
 static void upd_flag(r2A03 *, uint8_t, uint8_t);
 static void upd_c(r2A03 *, uint8_t);
@@ -464,17 +464,21 @@ optable[0xFF + 1] = {
 	{ .idx = 0xFF, .name = "ISC", .func = OP_ISC, .cycles = 0, .mode = ADDR_IAX }
 };
 
+/*
 static void
 write_acc(r2A03 *cpu, uint8_t data)
 {
 	cpu->A = data;
 }
+*/
 
+/* 
 static uint8_t
 get_acc(r2A03 *cpu)
 {
 	return cpu->A;
 }
+*/
 
 static uint8_t
 is_acc_mode(r2A03 *cpu)
@@ -603,11 +607,13 @@ get_i(r2A03 *cpu)
 	return getflag(cpu, MASK_INTERRUPT_DISABLE);
 }
 
+/*
 static uint8_t
 get_b(r2A03 *cpu)
 {
 	return getflag(cpu, MASK_BREAK);
 }
+*/
 
 static uint8_t
 get_v(r2A03 *cpu)
@@ -639,11 +645,13 @@ set_c(r2A03 *cpu)
 	setflag(cpu, MASK_CARRY);
 }
 
+/*
 static void
 set_z(r2A03 *cpu)
 {
 	setflag(cpu, MASK_ZERO);
 }
+*/
 
 static void
 set_i(r2A03 *cpu)
@@ -663,17 +671,21 @@ set_b(r2A03 *cpu)
 	setflag(cpu, MASK_BREAK);
 }
 
+/* 
 static void
 set_v(r2A03 *cpu)
 {
 	setflag(cpu, MASK_OVERFLOW);
 }
+*/
 
+/*
 static void
 set_n(r2A03 *cpu)
 {
 	setflag(cpu, MASK_NEGATIVE);
 }
+*/
 
 static void
 unset_c(r2A03 *cpu)
@@ -681,11 +693,13 @@ unset_c(r2A03 *cpu)
 	unsetflag(cpu, MASK_CARRY);
 }
 
+/*
 static void
 unset_z(r2A03 *cpu)
 {
 	unsetflag(cpu, MASK_ZERO);
 }
+*/
 
 static void
 unset_i(r2A03 *cpu)
@@ -705,11 +719,13 @@ unset_v(r2A03 *cpu)
 	unsetflag(cpu, MASK_OVERFLOW);
 }
 
+/*
 static void
 unset_n(r2A03 *cpu)
 {
 	unsetflag(cpu, MASK_NEGATIVE);
 }
+*/
 
 static void
 upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
@@ -774,6 +790,7 @@ overflowed_sub(uint8_t a, uint8_t b, uint8_t c)
 static void
 setirq(r2A03 *cpu, uint8_t val)
 {
+	(void)val; /* TODO: */
 	/* maskable */
 	if (get_i(cpu)) {
 		return;
@@ -783,6 +800,7 @@ setirq(r2A03 *cpu, uint8_t val)
 static void
 setnmi(r2A03 *cpu, uint8_t val)
 {
+	(void)val; /* TODO: */
 	/* non maskable */
 }
 
@@ -835,7 +853,6 @@ ADDR_IND(r2A03 *cpu)
 
 	uint8_t location_lo = read8(cpu);
 	uint8_t location_hi = read8(cpu);
-	// TODO: DRY this part?
 	uint8_t addr_lo = get8_addr(cpu, location_hi << 8 | location_lo);
 	uint8_t addr_hi = get8_addr(cpu, location_hi << 8 | (uint8_t)(location_lo + 1));
 	cpu->addr = addr_hi << 8 | addr_lo;
@@ -845,7 +862,6 @@ static void
 ADDR_INX(r2A03 *cpu)
 {
 	uint8_t location = read8(cpu);
-	// TODO: DRY this part?
 	uint8_t addr_lo = get8_addr(cpu, (location + cpu->X) & 0x00FF);
 	uint8_t addr_hi = get8_addr(cpu, (location + cpu->X + 1) & 0x00FF);
 	cpu->addr = addr_hi << 8 | addr_lo;
@@ -855,7 +871,6 @@ static void
 ADDR_INY(r2A03 *cpu)
 {
 	uint8_t location = read8(cpu);
-	// TODO: DRY this part?
     uint8_t addr_lo = get8_addr(cpu, location);
     uint8_t addr_hi = get8_addr(cpu, (location + 1) & 0x00FF);
     cpu->addr = (addr_hi << 8 | addr_lo) + cpu->Y;
@@ -888,6 +903,7 @@ ADDR_ZPG(r2A03 *cpu) {
 static void
 ADDR_ILL(r2A03 *cpu)
 {
+	(void)cpu; /* to remove compiler warning */
 	fprintf(stderr, "illegal address mode!\n");
 }
 
@@ -1352,21 +1368,25 @@ OP_TYA(r2A03 *cpu)
 static void
 OP_ALR(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
 OP_ANE(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
 OP_ARR(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
 OP_ANC(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
@@ -1386,6 +1406,7 @@ OP_ISC(r2A03 *cpu)
 static void
 OP_LAS(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
@@ -1399,6 +1420,7 @@ OP_LAX(r2A03 *cpu)
 static void
 OP_LXA(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
@@ -1424,21 +1446,25 @@ OP_SAX(r2A03 *cpu)
 static void
 OP_SBX(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
 OP_SHA(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
 OP_SHX(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
 OP_SHY(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
@@ -1458,11 +1484,13 @@ OP_SRE(r2A03 *cpu)
 static void
 OP_TAS(r2A03 *cpu)
 {
+	(void)cpu; /* TODO: */
 }
 
 static void
 OP_ILL(r2A03 *cpu)
 {
+	(void)cpu;
 	fprintf(stderr, "illegal opcode!\n"); /* TODO: remove */
 	return;
 }
@@ -1484,14 +1512,10 @@ void
 cpu_reset(r2A03 *cpu, bus *bus)
 {
 	cpu->bus = bus;
-	/* cpu->PC = get16_addr(cpu, VECTOR_RESET); */
-	cpu->PC = 0xC000; /* only for nestest! TODO: remove! */
-	cpu->SP = 0xFD;   /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
+	cpu->PC = get16_addr(cpu, VECTOR_RESET);
+	/* cpu->PC = 0xC000; only for nestest! TODO: remove! */
+	cpu->SP = 0xFD; /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
 	cpu->P = 0x24;
-	cpu->A = 0;
-	cpu->X = 0;
-	cpu->Y = 0;
-	cpu->stall = 0; /* TODO: do we need it here? */
 }
 
 typedef union {
