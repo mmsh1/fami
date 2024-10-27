@@ -26,7 +26,7 @@ bus_cpu_tick(bus *b)
 void
 bus_ppu_reset(bus *b)
 {
-	/* ppu_reset(b->ppu); */
+	ppu_reset(b->ppu);
 }
 
 void
@@ -45,26 +45,26 @@ uint8_t
 bus_ram_read(bus *b, uint16_t addr)
 {
 	if (addr >= 0x0000 && addr < 0x8000) {
-		return b->ram[addr]; /* TODO add check */
+		return b->ram[addr]; /* TODO: add check */
 	}
 	
 	if (addr >= 0x8000 && addr <= 0xFFFF) {
 		return cartrige_read(&b->rom, addr);
 	}
 
-	return 0; //TODO create error value
+	return 0; /* TODO: create error value */
 }
 
 void
 bus_ram_write(bus *b, uint16_t addr, uint8_t val)
 {
 	if (addr >= 0x0000 && addr < 0x8000) {
-		b->ram[addr] = val; /* TODO add check */
+		b->ram[addr] = val; /* TODO: add check */
 		return;
 	}
 
 	if (addr >= 0x8000 && addr <= 0xFFFF) {
 		fprintf(stderr, "trying to write to cartrige rom space\n"); /* TODO remove */
-		exit(1); /* TODO replace with assert? */
+		exit(1); /* TODO: replace with assert? */
 	}
 }
