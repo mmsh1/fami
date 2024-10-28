@@ -28,7 +28,7 @@ void bus_ppu_tick(bus *);
 
 void bus_ram_reset(bus *);
 
-uint8_t bus_ram_read(bus *, uint16_t);        /* TODO rename bus_read  */
-void bus_ram_write(bus *, uint16_t, uint8_t); /* TODO rename bus_write */
+uint8_t bus_read(bus *, uint16_t);
+void bus_write(bus *, uint16_t, uint8_t);
 
 #endif /* NES_BUS_H */

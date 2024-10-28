@@ -26,7 +26,7 @@ bus_cpu_tick(bus *b)
 void
 bus_ppu_reset(bus *b)
 {
-	ppu_reset(b->ppu);
+	ppu_reset(b->ppu, b);
 }
 
 void
@@ -42,10 +42,14 @@ bus_ram_reset(bus *b)
 }
 
 uint8_t
-bus_ram_read(bus *b, uint16_t addr)
+bus_read(bus *b, uint16_t addr)
 {
-	if (addr >= 0x0000 && addr < 0x8000) {
-		return b->ram[addr]; /* TODO: add check */
+	if (addr >= 0x0000 && addr <= 0x1FFF) {
+		return b->ram[addr];
+	}
+
+	if (addr >= 0x2000 && addr <= 0x3FFF) {
+		return ppu_read(b->ppu, addr);
 	}
 	
 	if (addr >= 0x8000 && addr <= 0xFFFF) {
@@ -56,7 +60,7 @@ bus_ram_read(bus *b, uint16_t addr)
 }
 
 void
-bus_ram_write(bus *b, uint16_t addr, uint8_t val)
+bus_write(bus *b, uint16_t addr, uint8_t val)
 {
 	if (addr >= 0x0000 && addr < 0x8000) {
 		b->ram[addr] = val; /* TODO: add check */
