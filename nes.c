@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include <SDL2/SDL.h>
-
 #include "bus.h"
 #include "cartrige.h"
 
@@ -47,7 +45,7 @@ nes_run(nes *n)
 static void
 nes_init(nes *n)
 {
-	bus_init(&n->bus, &n->cpu, n->ram, n->rom);
+	bus_init(&n->bus, &n->cpu, &n->ppu, n->ram, n->rom);
 	bus_cpu_reset(&n->bus);
 	/* bus_ram_reset(&n->bus); */
 	bus_ppu_reset(&n->bus);
@@ -58,7 +56,6 @@ nes_run_loop(nes *n)
 {
 	while (1) {
 		nes_run(n);
-		SDL_Delay(100);
 	}
 }
 

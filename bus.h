@@ -15,7 +15,7 @@ typedef struct bus {
 	cartrige rom; /* TODO use pointer? */
 } bus;
 
-void bus_init(bus *, r2A03 *, uint8_t *, cartrige);
+void bus_init(bus *, r2A03 *, r2C02 *, uint8_t *, cartrige);
 
 void bus_apu_reset(bus *);
 void bus_apu_tick(bus *);

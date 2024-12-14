@@ -1,5 +1,5 @@
 CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3 -Wconversion
-LIBS = -lSDL2
+LIBS = lib/libraylib.a -lm
 #-Werror
 
 all: options fami

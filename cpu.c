@@ -495,7 +495,7 @@ disable_acc_mode(r2A03 *cpu)
 static void
 write8_addr(r2A03 *cpu, uint16_t addr, uint8_t data)
 {
-	bus_ram_write(cpu->bus, addr, data);
+	bus_write(cpu->bus, addr, data);
 }
 
 static void
@@ -522,7 +522,7 @@ push16(r2A03 *cpu, uint16_t data)
 static uint8_t
 get8_addr(r2A03 *cpu, uint16_t addr)
 {
-	return bus_ram_read(cpu->bus, addr);
+	return bus_read(cpu->bus, addr);
 }
 
 static uint8_t

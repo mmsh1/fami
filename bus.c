@@ -4,9 +4,10 @@
 #include "bus.h"
 
 void
-bus_init(bus *bus, r2A03 *cpu, uint8_t *ram, cartrige rom)
+bus_init(bus *bus, r2A03 *cpu, r2C02 *ppu, uint8_t *ram, cartrige rom)
 {
 	bus->cpu = cpu;
+	bus->ppu = ppu;
 	bus->ram = ram;
 	bus->rom = rom;
 }
