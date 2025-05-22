@@ -12,7 +12,7 @@ typedef struct bus {
 	r2A03 *cpu;
 	r2C02 *ppu;
 	uint8_t *ram;
-	cartrige rom; /* TODO use pointer? */
+	cartrige rom; /* TODO: use pointer? */
 } bus;
 
 void bus_init(bus *, r2A03 *, r2C02 *, uint8_t *, cartrige);
@@ -23,7 +23,7 @@ void bus_apu_tick(bus *);
 void bus_cpu_reset(bus *);
 void bus_cpu_tick(bus *);
 
-void bus_ppu_reset(bus *);
+void bus_ppu_reset(bus *, cartrige *);
 void bus_ppu_tick(bus *);
 
 void bus_ram_reset(bus *);

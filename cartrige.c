@@ -39,7 +39,7 @@ cartrige_create(const char *path)
 
 	rom = fopen(path, "rb");
 	if (rom == NULL) {
-		fprintf(stderr, "ROM NOT OPENED!\n"); /* TODO wrap */
+		fprintf(stderr, "ERROR: ROM NOT OPENED!\n"); /* TODO wrap */
 		return (cartrige){
 			.invalid = 1
 		};
@@ -98,10 +98,22 @@ cartrige_create(const char *path)
 uint8_t
 cartrige_read(cartrige *cartrige, uint16_t addr)
 {
-	if (addr >= 0x8000 && addr <= 0xFFFF) {
+	if (addr <= 0x1FFF) {
+		return cartrige->chr[addr];
+	}
+
+	if (addr >= 0x8000) {
 		addr &= get_addr_offset(cartrige);
 		return cartrige->prg[addr];
 	}
 
+	fprintf(stderr, "ERROR: ILLEGAL READ FROM %04X\n", addr);
 	return 0; // TODO how can we handle this?
+}
+
+void
+cartrige_free(cartrige *cartrige)
+{
+	free(cartrige->prg);
+	free(cartrige->chr);
 }

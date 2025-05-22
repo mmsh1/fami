@@ -25,9 +25,9 @@ bus_cpu_tick(bus *b)
 }
 
 void
-bus_ppu_reset(bus *b)
+bus_ppu_reset(bus *b, cartrige *rom)
 {
-	ppu_reset(b->ppu, b);
+	ppu_reset(b->ppu, b, rom);
 }
 
 void
@@ -45,15 +45,36 @@ bus_ram_reset(bus *b)
 uint8_t
 bus_read(bus *b, uint16_t addr)
 {
-	if (addr >= 0x0000 && addr <= 0x1FFF) {
-		return b->ram[addr];
+	if (addr < 0x2000) {
+		return b->ram[addr % 0x800];
 	}
 
-	if (addr >= 0x2000 && addr <= 0x3FFF) {
+	if (addr < 0x4000) {
+		addr = 0x2000 + addr % 8; // TODO: create func for composing addr?
 		return ppu_read(b->ppu, addr);
 	}
+
+	if (addr == 0x4014) {
+		fprintf(stderr, "bus_read 0x4014 -> PPU OAM\n");
+		return 0;
+	}
+
+	if (addr == 0x4015) {
+		fprintf(stderr, "bus_read 0x4015 -> APU Register\n");
+		return 0;
+	}
 	
-	if (addr >= 0x8000 && addr <= 0xFFFF) {
+	if (addr == 0x4016) {
+		fprintf(stderr, "bus_read 0x4016 -> controller_1\n");
+		return 0;
+	}
+
+	if (addr == 0x4017) {
+		fprintf(stderr, "bus_read 0x4017 -> controller_2\n");
+		return 0;
+	}
+
+	if (addr >= 0x6000) {
 		return cartrige_read(&b->rom, addr);
 	}
 
@@ -63,12 +84,17 @@ bus_read(bus *b, uint16_t addr)
 void
 bus_write(bus *b, uint16_t addr, uint8_t val)
 {
-	if (addr >= 0x0000 && addr < 0x8000) {
+	// TODO: define addresses!
+	if (addr < 0x1FFF) {
 		b->ram[addr] = val; /* TODO: add check */
 		return;
 	}
 
-	if (addr >= 0x8000 && addr <= 0xFFFF) {
+	if (addr >= 0x2000 && addr <= 0x3FFF) {
+		ppu_write(b->ppu, addr, val);
+	}
+	
+	if (addr >= 0x8000) {
 		fprintf(stderr, "trying to write to cartrige rom space\n"); /* TODO remove */
 		exit(1); /* TODO: replace with assert? */
 	}

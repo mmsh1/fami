@@ -23,6 +23,7 @@ typedef struct {
 } cartrige;
 
 cartrige cartrige_create(const char *);
+void cartrige_free(cartrige *);
 uint8_t cartrige_read(cartrige *, uint16_t);
 
 #endif /* NES_CARTRIGE_H */
