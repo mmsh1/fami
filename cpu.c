@@ -19,8 +19,9 @@ enum {
 };
 
 enum {
-	VECTOR_IRQ = 0xFFFE,
-	VECTOR_RESET = 0xFFFC
+	VECTOR_RESET = 0xFFFC,
+	VECTOR_NMI = 0xFFFA,
+	VECTOR_IRQ = 0xFFFE
 };
 
 enum { TCPF = 29781 }; /* total cycles per frame */
@@ -515,8 +516,8 @@ push8(r2A03 *cpu, uint8_t data)
 static void
 push16(r2A03 *cpu, uint16_t data)
 {
-	push8(cpu, data >> 8);
-	push8(cpu, data & 0x00FF);
+	push8(cpu, (uint8_t)data >> 8);
+	push8(cpu, (uint8_t)data & 0x00FF);
 }
 
 static uint8_t
@@ -800,6 +801,7 @@ setirq(r2A03 *cpu, uint8_t val)
 static void
 setnmi(r2A03 *cpu, uint8_t val)
 {
+	(void)cpu;
 	(void)val; /* TODO: */
 	/* non maskable */
 }
@@ -837,6 +839,7 @@ ADDR_IMM(r2A03 *cpu)
 static void
 ADDR_IMP(r2A03 *cpu)
 {
+	(void)cpu;
 	return;
 }
 
@@ -873,7 +876,7 @@ ADDR_INY(r2A03 *cpu)
 	uint8_t location = read8(cpu);
     uint8_t addr_lo = get8_addr(cpu, location);
     uint8_t addr_hi = get8_addr(cpu, (location + 1) & 0x00FF);
-    cpu->addr = (addr_hi << 8 | addr_lo) + cpu->Y;
+    cpu->addr = (uint16_t)((addr_hi << 8 | addr_lo) + cpu->Y);
 }
 
 static void
@@ -892,12 +895,12 @@ static void
 ADDR_REL(r2A03 *cpu)
 {
 	int8_t offset = (int8_t)read8(cpu);
-	cpu->addr = cpu->PC + offset;
+	cpu->addr = (uint16_t)(cpu->PC + offset);
 }
 
 static void
 ADDR_ZPG(r2A03 *cpu) {
-	cpu->addr = read8(cpu) | 0x0000;
+	cpu->addr = read8(cpu);
 }
 
 static void
@@ -914,7 +917,7 @@ OP_ADC(r2A03 *cpu)
 	uint8_t val = get8(cpu);
 	uint8_t carry = get_c(cpu);
 
-	cpu->A = acc + val + carry;
+	cpu->A = (uint8_t)(acc + val + carry);
 
 	upd_c(cpu, (int)acc + (int)val + (int)carry > 0xFF); /* TODO: create func detect_carry() */
 	upd_v(cpu, overflowed_sum(acc, val, cpu->A));
@@ -1190,6 +1193,7 @@ OP_NOP(r2A03 *cpu)
 	 * other than the normal incrementing of the program counter
 	 * to the next instruction.
 	 */
+	(void)cpu;
 }
 
 static void
@@ -1281,7 +1285,7 @@ OP_SBC(r2A03 *cpu)
 	uint8_t val = get8(cpu);
 	uint8_t carry = get_c(cpu);
 
-	cpu->A = acc - val - (1 - carry);
+	cpu->A = (uint8_t)(acc - val - (1 - carry));
 
 	upd_c(cpu, (int)acc - (int)val - (int)(1 - carry) >= 0x00);
 	upd_v(cpu, overflowed_sub(acc, val, cpu->A));
@@ -1513,17 +1517,16 @@ cpu_reset(r2A03 *cpu, bus *bus)
 {
 	cpu->bus = bus;
 	cpu->PC = get16_addr(cpu, VECTOR_RESET);
-	/* cpu->PC = 0xC000; only for nestest! TODO: remove! */
 	cpu->SP = 0xFD; /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
 	cpu->P = 0x24;
 }
 
 typedef union {
-	uint16_t whole;
 	struct {
 		uint8_t lo;
 		uint8_t hi;
 	} part;
+	uint16_t whole;
 } disassemble_arg;
 
 static disassemble_arg
@@ -1559,9 +1562,9 @@ disassemble_get_arg(r2A03 *cpu, addr_mode amode)
 		arg.whole = get8_addr(cpu, curr_pc) + (cpu->Y & 0x00FF);
 	} else if (amode == ADDR_REL) {
 		int8_t offset = (int8_t)get8_addr(cpu, curr_pc++);
-		arg.whole = curr_pc + offset;
+		arg.whole = (uint16_t)(curr_pc + offset);
 	} else if (amode == ADDR_ZPG) {
-		arg.whole = get8_addr(cpu, curr_pc) | 0x0000;
+		arg.whole = get8_addr(cpu, curr_pc);
 	} else {
 		arg.whole = 0;
 	}
@@ -1576,16 +1579,17 @@ disassemble_compose_asm_str(r2A03 *cpu, uint8_t opcode, char strbuf[])
 {
 	char *curr = strbuf;
 	char *end = strbuf + ASM_STR_SIZE;
+	size_t buflen = (size_t)(end - curr);
 	disassemble_arg arg = disassemble_get_arg(cpu, optable[opcode].mode);
 	
-	curr += snprintf(curr, end - curr, "%02X ", optable[opcode].idx);
+	curr += snprintf(curr, buflen, "%02X ", optable[opcode].idx);
 	if (arg.part.hi != 0) {
-		curr += snprintf(curr, end - curr, "%02X %02X ",  arg.part.lo, arg.part.hi);
+		curr += snprintf(curr, buflen, "%02X %02X ",  arg.part.lo, arg.part.hi);
 	} else {
-		curr += snprintf(curr, end - curr, "%02X    ",  arg.part.lo);
+		curr += snprintf(curr, buflen, "%02X    ",  arg.part.lo);
 	}
-	curr += snprintf(curr, end - curr, "%s ", optable[opcode].name);
-	curr += snprintf(curr, end - curr, "%*X  ", 5, arg.whole);
+	curr += snprintf(curr, buflen, "%s ", optable[opcode].name);
+	curr += snprintf(curr, buflen, "%*X  ", 5, arg.whole);
 }
 
 /* Using nestest log format for easy comparision with nestest.log.
