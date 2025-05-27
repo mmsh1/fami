@@ -1,3 +1,5 @@
+#include "raylib.h"
+
 #include "gfx.h"
 
 RenderTexture2D viewport;

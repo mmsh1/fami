@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#include "raylib.h"
-
 void gfx_destroy();
 void gfx_draw_frame(const uint32_t *);
 void gfx_init();
