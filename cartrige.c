@@ -15,15 +15,24 @@ static mirroring_type
 get_mirroring_type(uint8_t ctl)
 {
 	uint8_t mirroring = ctl & 0x1;
-	if (mirroring == 0x0) return HORIZONTAL_MIRRORING;
-	if (mirroring == 0x1) return VERTICAL_MIRRORING;
+
+	switch (mirroring) {
+		case 0x0:
+			return HORIZONTAL_MIRRORING;
+		case 0x1:
+			return VERTICAL_MIRRORING;
+		case 0x4:
+			return 0;
+		/* TODO: */
+	}
+
 	return INVALID_MIRRORING;
 }
 
 static uint16_t
-get_addr_offset(cartrige *cartrige)
+get_addr_offset(const cartrige *c)
 {
-	if (cartrige->prg_size > 1) {
+	if (c->prg_size > 1) {
 		return 0x7FFF;
 	}
 	return 0x3FFF;
@@ -96,15 +105,21 @@ cartrige_create(const char *path)
 }
 
 uint8_t
-cartrige_read(cartrige *cartrige, uint16_t addr)
+cartrige_get_mirroring(const cartrige *c)
+{
+	return c->mirroring;
+}
+
+uint8_t
+cartrige_read(const cartrige *c, uint16_t addr)
 {
 	if (addr <= 0x1FFF) {
-		return cartrige->chr[addr];
+		return c->chr[addr];
 	}
 
 	if (addr >= 0x8000) {
-		addr &= get_addr_offset(cartrige);
-		return cartrige->prg[addr];
+		addr &= get_addr_offset(c);
+		return c->prg[addr];
 	}
 
 	fprintf(stderr, "ERROR: ILLEGAL READ FROM %04X\n", addr);
@@ -112,8 +127,8 @@ cartrige_read(cartrige *cartrige, uint16_t addr)
 }
 
 void
-cartrige_free(cartrige *cartrige)
+cartrige_free(cartrige *c)
 {
-	free(cartrige->prg);
-	free(cartrige->chr);
+	free(c->prg);
+	free(c->chr);
 }

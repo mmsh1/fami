@@ -41,6 +41,9 @@ typedef struct {
 	uint8_t ppu_data;   /* PPUDATA   $2007 */
 	uint8_t oam_dma;    /* OAMDMA    $4014 */
 
+	uint8_t read_buffer;
+	uint8_t write_buffer;
+
 	uint8_t vram[VRAM_SIZE];
 	uint8_t oam[OAM_SIZE];
 
@@ -55,7 +58,7 @@ typedef struct {
 		address curr_addr;
 		address tmp_addr;
 		uint8_t write_flag;
-	} reg;
+	} vram_reg;
 
 	cartrige *rom;
 	struct bus *bus;

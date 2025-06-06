@@ -62,18 +62,43 @@ ppu_colors[0x40] = {
 	0xB5EBF2FF, 0xB8B8B8FF, 0x000000FF, 0x000000FF
 };
 
-void
-ppu_reset(r2C02 *ppu, struct bus *bus, cartrige *rom)
+static int
+get_increment_mode(r2C02 *ppu)
 {
-	ppu->bus = bus;
-	ppu->scanline = 240; /* TODO: use defined const */
-	ppu->cycle = 340;    /* TODO: use defined const */
-	ppu->frame = 0;
-	ppu->rom = rom;
+	return ppu->ppu_ctrl & PPUCTRL_INCREMENT_MODE;
 }
 
 static uint8_t
-ppu_palette_read(uint16_t addr)
+nametable_read(r2C02 *ppu, uint16_t addr)
+{
+	mirroring_type mt = cartrige_get_mirroring(ppu->rom);
+
+	switch (mt) {
+		case HORIZONTAL_MIRRORING:
+			addr = ((addr / 2) & 0x400) + (addr % 0x400);
+			break;
+		case VERTICAL_MIRRORING:
+			addr %= 0x800;
+			break;
+		case SINGLE_SCREEN_A:
+		case SINGLE_SCREEN_B:
+		case FOUR_SCREEN:
+		case INVALID_MIRRORING: // TODO:
+		default:
+			addr -= 0x2000;
+	}
+
+	return ppu->vram[addr];
+}
+
+static void
+nametable_write(r2C02 *ppu, uint16_t addr, uint8_t val)
+{
+	(void)ppu, (void)addr, (void)val;
+}
+
+static uint8_t
+palette_read(uint16_t addr)
 {
 	switch (addr) {
 		case 0x3F10:
@@ -89,20 +114,58 @@ ppu_palette_read(uint16_t addr)
 	return ppu_palette[addr];
 }
 
+static void
+vram_addr_increment(r2C02 *ppu)
+{
+	uint16_t inc_val = get_increment_mode(ppu) ? 32 : 1;
+	ppu->vram_reg.curr_addr.whole += inc_val;
+}
+
+static uint16_t
+vram_addr_read(r2C02 *ppu)
+{
+	uint16_t addr = ppu->vram_reg.curr_addr.whole;
+	vram_addr_increment(ppu);
+	return addr;
+}
+
 static uint8_t
-ppu_internal_read(r2C02 *ppu, uint16_t addr)
+vram_data_read(r2C02 *ppu, uint16_t addr)
 {
 	if (addr < 0x2000) {
 		return cartrige_read(ppu->rom, addr);
 	}
 
-	/* TODO: < 0x3000, < 0x3F00 */
-
-	if (addr < 0x4000) {
-		return ppu_palette_read(addr);
+	if (addr < 0x3F00) {
+		return nametable_read(ppu, addr);
 	}
 
-	return 0x0;
+	if (addr < 0x4000) {
+		return palette_read(addr);
+	}
+
+	return 0x0; /* TODO: assert? */
+}
+
+static void
+vram_data_write(r2C02 *ppu, uint16_t addr, uint8_t val)
+{
+	(void) ppu;
+	(void) addr;
+	(void) val;
+}
+
+static void
+vram_reg_write(r2C02 *ppu, uint8_t val)
+{
+	if (ppu->vram_reg.write_flag == 0) {
+		ppu->vram_reg.tmp_addr.part.hi = val;
+		ppu->vram_reg.write_flag = 1;
+	} else {
+		ppu->vram_reg.tmp_addr.part.lo = val;
+		ppu->vram_reg.curr_addr.whole = ppu->vram_reg.tmp_addr.whole;
+		ppu->vram_reg.write_flag = 0;
+	}
 }
 
 static void
@@ -116,14 +179,14 @@ debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 	tile_idx *= 0x10;
 
 	for (i = 0; i <= 8; i++) {
-		tile_hi = ppu_internal_read(ppu, (uint16_t)(tile_idx + i));
-		tile_lo = ppu_internal_read(ppu, (uint16_t)(tile_idx + i + 8));
+		tile_hi = vram_data_read(ppu, (uint16_t)(tile_idx + i));
+		tile_lo = vram_data_read(ppu, (uint16_t)(tile_idx + i + 8));
 
 		for (j = 7; j >= 0; j--) {
 			color_idx = (tile_lo & 0x1) << 1 | (tile_hi & 0x1); /* from 0 to 3 */
 			
-			bg_color = ppu_colors[ppu_internal_read(ppu, 0x3F00)];
-			fg_color = ppu_colors[ppu_internal_read(ppu, 0x3F00 | (color_idx + 6))];
+			bg_color = ppu_colors[vram_data_read(ppu, 0x3F00)];
+			fg_color = ppu_colors[vram_data_read(ppu, 0x3F00 | (color_idx + 6))];
 
 			if (color_idx == 0) {
 				fg_color = bg_color;
@@ -137,6 +200,16 @@ debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 }
 
 void
+ppu_reset(r2C02 *ppu, struct bus *bus, cartrige *rom)
+{
+	ppu->bus = bus;
+	ppu->scanline = 240; /* TODO: use defined const */
+	ppu->cycle = 340;    /* TODO: use defined const */
+	ppu->frame = 0;
+	ppu->rom = rom;
+}
+
+void
 ppu_tick(r2C02 *ppu)
 {
 	/* NOTE: graphics debug
@@ -145,7 +218,6 @@ ppu_tick(r2C02 *ppu)
 	int tile_idx = 0;
 	int x, y;
 
-	/* upper left quadrant */
 	for (y = 0; y < 128; y += 8) {
 		for (x = 0; x < 128; x += 8) {
 			debug_draw_tile(ppu, x, y, tile_idx);
@@ -153,7 +225,6 @@ ppu_tick(r2C02 *ppu)
 		}
 	}
 
-	/* upper right quadrant */
 	for (y = 0; y < 128; y += 8) {
 		for (x = 128; x < 256; x += 8) {
 			debug_draw_tile(ppu, x, y, tile_idx);
@@ -168,8 +239,9 @@ ppu_read(r2C02 *ppu, uint16_t addr)
 		case PPUSTATUS:
 			return ppu->ppu_status;
 		case OAMDATA:
-		case PPUDATA:
 			break;
+		case PPUDATA:
+			return vram_data_read(ppu, vram_addr_read(ppu)); /* TODO: move vram_addr_read into vram_data_read */
 	}
 
 	return 0; /* TODO: handle addr >= VRAM_SIZE ? */
@@ -183,15 +255,18 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 			// TODO: create NMI
 			ppu->ppu_ctrl = val;
 			break;
+		case PPUMASK:
+		case OAMADDR:
+		case OAMDATA:
+		case PPUSCROLL:
+			break;
 		case PPUADDR:
-			if (ppu->reg.write_flag == 0) {
-				ppu->reg.tmp_addr.part.hi = val;
-				ppu->reg.write_flag = 1;
-			} else {
-				ppu->reg.tmp_addr.part.lo = val;
-				ppu->reg.curr_addr.whole = ppu->reg.tmp_addr.whole;
-				ppu->reg.write_flag = 0;
-			}
+			vram_reg_write(ppu, val);
+			break;
+		case PPUDATA:
+			vram_data_write(ppu, vram_addr_read(ppu), val); /* TODO: move vram_addr_read into vram_data_write */
+			break;
+		case OAMDMA:
 			break;
 	}
 
