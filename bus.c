@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>  /* TODO remove */
 #include <stdlib.h> /* TODO remove */
 
@@ -10,6 +11,18 @@ bus_init(bus *bus, r2A03 *cpu, r2C02 *ppu, uint8_t *ram, cartrige rom)
 	bus->ppu = ppu;
 	bus->ram = ram;
 	bus->rom = rom;
+}
+
+uint8_t
+bus_cartrige_get_mirroring(bus *b)
+{
+	return cartrige_get_mirroring(&b->rom);
+}
+
+uint8_t
+bus_cartrige_read(bus *b, uint16_t addr)
+{
+	return cartrige_read(&b->rom, addr);
 }
 
 void
@@ -25,9 +38,15 @@ bus_cpu_tick(bus *b)
 }
 
 void
-bus_ppu_reset(bus *b, cartrige *rom)
+bus_cpu_trigger_nmi(bus *b)
 {
-	ppu_reset(b->ppu, b, rom);
+	cpu_trigger_nmi(b->cpu);
+}
+
+void
+bus_ppu_reset(bus *b)
+{
+	ppu_reset(b->ppu, b);
 }
 
 void
@@ -75,7 +94,7 @@ bus_read(bus *b, uint16_t addr)
 	}
 
 	if (addr >= 0x6000) {
-		return cartrige_read(&b->rom, addr);
+		return bus_cartrige_read(b, addr);
 	}
 
 	return 0; /* TODO: create error value */

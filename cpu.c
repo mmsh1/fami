@@ -874,9 +874,9 @@ static void
 ADDR_INY(r2A03 *cpu)
 {
 	uint8_t location = read8(cpu);
-    uint8_t addr_lo = get8_addr(cpu, location);
-    uint8_t addr_hi = get8_addr(cpu, (location + 1) & 0x00FF);
-    cpu->addr = (uint16_t)((addr_hi << 8 | addr_lo) + cpu->Y);
+	uint8_t addr_lo = get8_addr(cpu, location);
+	uint8_t addr_hi = get8_addr(cpu, (location + 1) & 0x00FF);
+	cpu->addr = (uint16_t)((addr_hi << 8 | addr_lo) + cpu->Y);
 }
 
 static void
@@ -1500,25 +1500,31 @@ OP_ILL(r2A03 *cpu)
 }
 
 void
-cpu_tick(r2A03 *cpu)
-{
-	/* poll interrupts here */
-	/* if irq -> cpu_setirq */
-	/* if nmi -> cpu_setnmi */
-
-	disassemble(cpu);
-	cpu->opcode = read8(cpu);
-	optable[cpu->opcode].mode(cpu);
-	optable[cpu->opcode].func(cpu);
-}
-
-void
 cpu_reset(r2A03 *cpu, bus *bus)
 {
 	cpu->bus = bus;
 	cpu->PC = get16_addr(cpu, VECTOR_RESET);
 	cpu->SP = 0xFD; /* 0x00 - 0x3. See https://www.youtube.com/watch?v=fWqBmmPQP40&t=2536s */
 	cpu->P = 0x24;
+}
+
+void
+cpu_tick(r2A03 *cpu)
+{
+	/* poll interrupts here */
+	/* if irq -> cpu_setirq */
+	/* if nmi -> cpu_setnmi */
+
+	/* disassemble(cpu); */
+	cpu->opcode = read8(cpu);
+	optable[cpu->opcode].mode(cpu);
+	optable[cpu->opcode].func(cpu);
+}
+
+void
+cpu_trigger_nmi(r2A03 *cpu)
+{
+	cpu->nmi = 1;
 }
 
 typedef union {

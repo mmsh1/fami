@@ -20,10 +20,14 @@ void bus_init(bus *, r2A03 *, r2C02 *, uint8_t *, cartrige);
 void bus_apu_reset(bus *);
 void bus_apu_tick(bus *);
 
+uint8_t bus_cartrige_get_mirroring(bus *);
+uint8_t bus_cartrige_read(bus *, uint16_t );
+
 void bus_cpu_reset(bus *);
 void bus_cpu_tick(bus *);
+void bus_cpu_trigger_nmi(bus *);
 
-void bus_ppu_reset(bus *, cartrige *);
+void bus_ppu_reset(bus *);
 void bus_ppu_tick(bus *);
 
 void bus_ram_reset(bus *);

@@ -1,8 +1,8 @@
 #include <string.h>	/* memset */
 
-/* #include "bus.h" */
 #include "mem.h"
 
+/* TODO: do we really need it? */
 void
 mem_reset(uint8_t *mem)
 {

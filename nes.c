@@ -58,7 +58,7 @@ nes_init(nes *n)
 	bus_init(&n->bus, &n->cpu, &n->ppu, n->ram, n->rom);
 	bus_ram_reset(&n->bus);
 	bus_cpu_reset(&n->bus);
-	bus_ppu_reset(&n->bus, &n->rom);
+	bus_ppu_reset(&n->bus);
 	gfx_init(); // TODO: create layer for holding array
 }
 

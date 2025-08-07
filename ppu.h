@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#include "cartrige.h"
-
 enum {
 	OAM_SIZE = 256,
 	VRAM_SIZE = 2048
@@ -15,7 +13,12 @@ enum {
 	SCREEN_HEIGHT = 240
 };
 
+/* NOTE: to use these functions we have to import bus.h
+ * But we can't do it due to circular include (they will include each other).
+ * Therefore, we are using forward declaration. */
 struct bus;
+uint8_t bus_cartrige_read(struct bus *, uint16_t);
+uint8_t bus_cartrige_get_mirroring(struct bus *);
 
 typedef struct {
 	uint8_t pos_x;
@@ -47,9 +50,9 @@ typedef struct {
 	uint8_t vram[VRAM_SIZE];
 	uint8_t oam[OAM_SIZE];
 
-	int scanline; /* [0..261] */
-	int cycle;    /* [0..340] */
-	int frame;
+	int curr_scanline; /* [0..261] */
+	int curr_cycle;    /* [0..340] */
+	int curr_frame;
 
 	sprite sprite_table[8];
 	uint32_t frame_buf[SCREEN_WIDTH * SCREEN_HEIGHT];
@@ -60,11 +63,10 @@ typedef struct {
 		uint8_t write_flag;
 	} vram_reg;
 
-	cartrige *rom;
 	struct bus *bus;
 } r2C02;
 
-void ppu_reset(r2C02 *, struct bus *, cartrige *);
+void ppu_reset(r2C02 *, struct bus *);
 void ppu_tick(r2C02 *);
 uint8_t ppu_read(r2C02 *, uint16_t);
 void ppu_write(r2C02 *, uint16_t, uint8_t);

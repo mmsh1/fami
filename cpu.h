@@ -25,5 +25,6 @@ typedef struct {
 
 void cpu_reset(r2A03 *, struct bus *);
 void cpu_tick(r2A03 *);
+void cpu_trigger_nmi(r2A03 *);
 
 #endif /* NES_CPU_H */

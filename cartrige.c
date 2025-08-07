@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "cartrige.h"
-#include "ines.h"
 
 enum {
 	PRG_ROM_BANK_SIZE = 0x4000,

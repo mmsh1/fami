@@ -1,4 +1,7 @@
+#include "ines.h"
 #include "ppu.h"
+
+#include <stdio.h> //TODO: remove
 
 enum {
 	PPUCTRL = 0x2000,
@@ -62,8 +65,14 @@ ppu_colors[0x40] = {
 	0xB5EBF2FF, 0xB8B8B8FF, 0x000000FF, 0x000000FF
 };
 
-static int
-get_increment_mode(r2C02 *ppu)
+static inline int
+get_color_idx_in_palette(uint8_t lo, uint8_t hi)
+{
+	return (lo & 0x1) << 1 | (hi & 0x1); /* from 0 to 3 */
+}
+
+static inline int
+get_increment_mode(const r2C02 *ppu)
 {
 	return ppu->ppu_ctrl & PPUCTRL_INCREMENT_MODE;
 }
@@ -71,7 +80,7 @@ get_increment_mode(r2C02 *ppu)
 static uint8_t
 nametable_read(r2C02 *ppu, uint16_t addr)
 {
-	mirroring_type mt = cartrige_get_mirroring(ppu->rom);
+	mirroring_type mt = bus_cartrige_get_mirroring(ppu->bus);
 
 	switch (mt) {
 		case HORIZONTAL_MIRRORING:
@@ -133,7 +142,7 @@ static uint8_t
 vram_data_read(r2C02 *ppu, uint16_t addr)
 {
 	if (addr < 0x2000) {
-		return cartrige_read(ppu->rom, addr);
+		return bus_cartrige_read(ppu->bus, addr);
 	}
 
 	if (addr < 0x3F00) {
@@ -168,6 +177,12 @@ vram_reg_write(r2C02 *ppu, uint8_t val)
 	}
 }
 
+static inline void
+set_pixel(r2C02 *ppu, int x, int y, uint32_t color)
+{
+	ppu->frame_buf[x + y * 256] = color;
+}
+
 static void
 debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 {
@@ -175,16 +190,18 @@ debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 	uint8_t color_idx;
 	uint32_t bg_color, fg_color;
 	int i, j;
-
-	tile_idx *= 0x10;
+	int tile_addr = tile_idx * 0x10; /* 0->0, 1->16, 2->32, 3->48, 4->64 ... */
 
 	for (i = 0; i <= 8; i++) {
-		tile_hi = vram_data_read(ppu, (uint16_t)(tile_idx + i));
-		tile_lo = vram_data_read(ppu, (uint16_t)(tile_idx + i + 8));
+		tile_hi = vram_data_read(ppu, (uint16_t)(tile_addr + i));
+		tile_lo = vram_data_read(ppu, (uint16_t)(tile_addr + i + 8));
 
 		for (j = 7; j >= 0; j--) {
-			color_idx = (tile_lo & 0x1) << 1 | (tile_hi & 0x1); /* from 0 to 3 */
+			color_idx = get_color_idx_in_palette(tile_lo, tile_hi);
 			
+			tile_hi /= 2;
+			tile_lo /= 2;
+
 			bg_color = ppu_colors[vram_data_read(ppu, 0x3F00)];
 			fg_color = ppu_colors[vram_data_read(ppu, 0x3F00 | (color_idx + 6))];
 
@@ -192,44 +209,58 @@ debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 				fg_color = bg_color;
 			}
 
-			ppu->frame_buf[x + j + ((y + i) * 256)] = fg_color;
-			tile_hi /= 2;
-			tile_lo /= 2;
+			set_pixel(ppu, x + j, y + i, fg_color);
 		}
 	}
 }
 
 void
-ppu_reset(r2C02 *ppu, struct bus *bus, cartrige *rom)
+ppu_reset(r2C02 *ppu, struct bus *bus)
 {
 	ppu->bus = bus;
-	ppu->scanline = 240; /* TODO: use defined const */
-	ppu->cycle = 340;    /* TODO: use defined const */
-	ppu->frame = 0;
-	ppu->rom = rom;
+	ppu->curr_scanline = 240; /* TODO: use defined const */
+	ppu->curr_cycle = 340;    /* TODO: use defined const */
+	ppu->curr_frame = 0;
 }
 
 void
 ppu_tick(r2C02 *ppu)
 {
-	/* NOTE: graphics debug
-	 * development only */
+	int render_background = ppu->ppu_ctrl & PPUCTRL_BACKGROUND_TILE_SELECT; /* TODO: create func */
+	int render_sprite = ppu->ppu_ctrl & PPUCTRL_SPRITE_TILE_SELECT;         /* TODO: create func */
 
-	int tile_idx = 0;
-	int x, y;
+	/* TODO: remove */
+	fprintf(
+		stderr,
+		"SCANLINE: %d\tCYCLE: %d\tBACKGROUND: %d\tSPRITE: %d\n",
+		ppu->curr_scanline,
+		ppu->curr_cycle,
+		render_background,
+		render_sprite
+	);
 
-	for (y = 0; y < 128; y += 8) {
-		for (x = 0; x < 128; x += 8) {
-			debug_draw_tile(ppu, x, y, tile_idx);
-			tile_idx++;
-		}
+	ppu->curr_cycle++;
+
+	if (ppu->curr_scanline == -1) {
+		/* TODO: handle */
 	}
 
-	for (y = 0; y < 128; y += 8) {
-		for (x = 128; x < 256; x += 8) {
-			debug_draw_tile(ppu, x, y, tile_idx);
-		}
+	if (ppu->curr_cycle == 341) {
+		/* TODO: handle */
 	}
+
+	if (ppu->curr_cycle > 340) {
+		ppu->curr_cycle = 0;
+		ppu->curr_scanline++;
+		if (ppu->curr_scanline > 261) {
+			ppu->curr_scanline = 0;
+		}
+    }
+
+	/*
+	if (render_background) {...}
+	if (render_foreground) {...}
+	*/
 }
 
 uint8_t

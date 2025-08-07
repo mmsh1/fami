@@ -5,13 +5,14 @@
 
 /* see to https://www.nesdev.org/wiki/INES */
 
-// enum mirroring {
-// 	HORIZONTAL,
-// 	VERTICAL,
-// 	SINGLE_SCREEN_A,
-// 	SINGLE_SCREEN_B,
-// 	FOUR_SCREEN
-// };
+typedef enum {
+	HORIZONTAL_MIRRORING,
+	VERTICAL_MIRRORING,
+	SINGLE_SCREEN_A,
+	SINGLE_SCREEN_B,
+	FOUR_SCREEN,
+	INVALID_MIRRORING
+} mirroring_type;
 
 enum flags6_masks {
 	MIRRORING_MASK = 0x01,
