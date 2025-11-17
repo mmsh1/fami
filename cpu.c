@@ -4,14 +4,14 @@
 #include "cpu.h"
 
 enum {
-	MASK_CARRY = 0x01,
-	MASK_ZERO = 0x02,
-	MASK_INTERRUPT_DISABLE = 0x04,
-	MASK_DECIMAL = 0x08,
-	MASK_BREAK = 0x10,
-	MASK_UNUSED = 0x20,
-	MASK_OVERFLOW = 0x40,
-	MASK_NEGATIVE = 0x80
+	MASK_CARRY = 0x01,              /* 0000 0001 -> (1 << 0) */
+	MASK_ZERO = 0x02,               /* 0000 0010 -> (1 << 1) */
+	MASK_INTERRUPT_DISABLE = 0x04,  /* 0000 0100 -> (1 << 2) */
+	MASK_DECIMAL = 0x08,            /* 0000 1000 -> (1 << 3) */
+	MASK_BREAK = 0x10,              /* 0001 0000 -> (1 << 4) */
+	MASK_UNUSED = 0x20,             /* 0010 0000 -> (1 << 5) */
+	MASK_OVERFLOW = 0x40,           /* 0100 0000 -> (1 << 6) */
+	MASK_NEGATIVE = 0x80            /* 1000 0000 -> (1 << 7) */
 };
 
 enum {
@@ -50,37 +50,28 @@ static void push16(r2A03 *, uint16_t);
 static uint8_t get8_addr(r2A03 *, uint16_t);
 static uint8_t get8(r2A03 *);
 static uint8_t read8(r2A03 *);
-/* static uint8_t read8_indirect(r2A03 *, uint16_t); TODO: remove */
 static uint8_t pop8(r2A03 *);
 static uint16_t get16_addr(r2A03 *, uint16_t);
 static uint16_t pop16(r2A03 *);
 static uint16_t read16(r2A03 *);
-/* static uint16_t read16_indirect(r2A03 *, uint16_t); TODO: remove */
 
 static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t get_c(r2A03 *);
 static uint8_t get_z(r2A03 *);
-static uint8_t get_i(r2A03 *);
-/* static uint8_t get_b(r2A03 *); TODO: remove */
+/* static uint8_t get_i(r2A03 *); */
 static uint8_t get_v(r2A03 *);
 static uint8_t get_n(r2A03 *);
 
 static void setflag(r2A03 *, uint8_t);
 static void set_c(r2A03 *);
-/* static void set_z(r2A03 *); TODO: remove */
 static void set_i(r2A03 *);
 static void set_d(r2A03 *);
 static void set_b(r2A03 *);
-/* static void set_v(r2A03 *); TODO: remove */
-/* static void set_n(r2A03 *); TODO: remove */
 
 static void unsetflag(r2A03 *, uint8_t);
 static void unset_c(r2A03 *);
-/* static void unset_z(r2A03 *); TODO: remove */
-static void unset_i(r2A03 *);
 static void unset_d(r2A03 *);
 static void unset_v(r2A03 *);
-/* static void unset_n(r2A03 *); TODO: remove */
 
 static void upd_flag(r2A03 *, uint8_t, uint8_t);
 static void upd_c(r2A03 *, uint8_t);
@@ -92,8 +83,9 @@ static void upd_zn(r2A03 *, uint8_t);
 static uint8_t overflowed_sum(uint8_t, uint8_t, uint8_t);
 static uint8_t overflowed_sub(uint8_t, uint8_t, uint8_t);
 
-static void setirq(r2A03 *, uint8_t);
-static void setnmi(r2A03 *, uint8_t);
+static void poll_interrupts(r2A03 *);
+static void handle_irq(r2A03 *);
+static void handle_nmi(r2A03 *);
 
 static void ADDR_ABS(r2A03 *); /* absolute */
 static void ADDR_ACC(r2A03 *); /* accumulator */
@@ -516,8 +508,8 @@ push8(r2A03 *cpu, uint8_t data)
 static void
 push16(r2A03 *cpu, uint16_t data)
 {
-	push8(cpu, (uint8_t)data >> 8);
-	push8(cpu, (uint8_t)data & 0x00FF);
+	push8(cpu, (uint8_t)(data >> 8));
+	push8(cpu, (uint8_t)(data & 0x00FF));
 }
 
 static uint8_t
@@ -602,11 +594,13 @@ get_n(r2A03 *cpu)
 	return getflag(cpu, MASK_NEGATIVE);
 }
 
+/*
 static uint8_t
 get_i(r2A03 *cpu)
 {
 	return getflag(cpu, MASK_INTERRUPT_DISABLE);
 }
+*/
 
 /*
 static uint8_t
@@ -789,21 +783,35 @@ overflowed_sub(uint8_t a, uint8_t b, uint8_t c)
 }
 
 static void
-setirq(r2A03 *cpu, uint8_t val)
+poll_interrupts(r2A03 *cpu)
 {
-	(void)val; /* TODO: */
-	/* maskable */
-	if (get_i(cpu)) {
+	if (cpu->nmi) {
+		handle_nmi(cpu);
+		cpu->nmi = 0;
+		return;
+	}
+
+	if (cpu->irq) {
+		handle_irq(cpu);
+		cpu->irq = 0;
 		return;
 	}
 }
 
 static void
-setnmi(r2A03 *cpu, uint8_t val)
+handle_irq(r2A03 *cpu)
 {
-	(void)cpu;
-	(void)val; /* TODO: */
-	/* non maskable */
+	push16(cpu, cpu->PC);
+	push8(cpu, cpu->P);
+	cpu->PC = get16_addr(cpu, VECTOR_IRQ);
+}
+
+static void
+handle_nmi(r2A03 *cpu)
+{
+	push16(cpu, cpu->PC);
+	push8(cpu, cpu->P);
+	cpu->PC = get16_addr(cpu, VECTOR_NMI);
 }
 
 static void
@@ -1270,6 +1278,7 @@ OP_RTI(r2A03 *cpu)
 {
 	cpu->P = pop8(cpu);
 	cpu->PC = pop16(cpu);
+	poll_interrupts(cpu);
 }
 
 static void
@@ -1511,9 +1520,7 @@ cpu_reset(r2A03 *cpu, bus *bus)
 void
 cpu_tick(r2A03 *cpu)
 {
-	/* poll interrupts here */
-	/* if irq -> cpu_setirq */
-	/* if nmi -> cpu_setnmi */
+	poll_interrupts(cpu);
 
 	/* disassemble(cpu); */
 	cpu->opcode = read8(cpu);
