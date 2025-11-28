@@ -1,7 +1,7 @@
 #include "ines.h"
 #include "ppu.h"
 
-#include <stdio.h> //TODO: remove
+#include <stdint.h>
 
 enum {
 	PPUCTRL = 0x2000,
@@ -26,12 +26,16 @@ enum {
 };
 
 enum {
-	PPUMASK_BGR = 0xE0,
-	PPUMASK_SPRITE_ENABLE = 0x10,
-	PPUMASK_BACKGROUND_ENABLE = 0x08,
-	PPUMASK_SPRITE_LEFT_COL_ENABLE = 0x04,
-	PPUMASK_BACKGROUND_LEFT_COL_ENABLE = 0x02,
-	PPUMASK_GREYSCALE = 0x01
+	PPUMASK_BGR = 0xE0,                        /* 1110 0000 */
+	PPUMASK_SPRITE_ENABLE = 0x10,              /* 0001 0000 -> (1 << 4) */
+	PPUMASK_BACKGROUND_ENABLE = 0x08,          /* 0000 1000 -> (1 << 3) */
+	PPUMASK_SPRITE_LEFT_COL_ENABLE = 0x04,     /* 0000 0100 -> (1 << 2) */
+	PPUMASK_BACKGROUND_LEFT_COL_ENABLE = 0x02, /* 0000 0010 -> (1 << 1) */
+	PPUMASK_GREYSCALE = 0x01                   /* 0000 0001 -> (1 << 0) */
+};
+
+enum {
+	PPUSTATUS_VBLANK_ENABLED = 0x80 /* 1000 0000 -> (1 << 7) */
 };
 
 static uint8_t
@@ -65,7 +69,7 @@ ppu_colors[0x40] = {
 	0xB5EBF2FF, 0xB8B8B8FF, 0x000000FF, 0x000000FF
 };
 
-static inline int
+static inline uint8_t
 get_color_idx_in_palette(uint8_t lo, uint8_t hi)
 {
 	return (lo & 0x1) << 1 | (hi & 0x1); /* from 0 to 3 */
@@ -75,6 +79,13 @@ static inline int
 get_increment_mode(const r2C02 *ppu)
 {
 	return ppu->ppu_ctrl & PPUCTRL_INCREMENT_MODE;
+}
+
+static inline uint8_t
+multiplex_pixels(uint8_t bg_pixel, uint8_t fg_pixel)
+{
+	return (fg_pixel == 0) ? bg_pixel : fg_pixel;
+	/* TODO: add sprite priority */
 }
 
 static uint8_t
@@ -100,12 +111,6 @@ nametable_read(r2C02 *ppu, uint16_t addr)
 	return ppu->vram[addr];
 }
 
-static void
-nametable_write(r2C02 *ppu, uint16_t addr, uint8_t val)
-{
-	(void)ppu, (void)addr, (void)val;
-}
-
 static uint8_t
 palette_read(uint16_t addr)
 {
@@ -121,6 +126,33 @@ palette_read(uint16_t addr)
 	addr %= 0x20;
 
 	return ppu_palette[addr];
+}
+
+static uint8_t
+render_bg_pixel(r2C02 *ppu)
+{
+	return 0x01;
+}
+
+static uint8_t
+render_fg_pixel(r2C02 *ppu)
+{
+	return 0;
+}
+
+
+static void
+vblank_start(r2C02 *ppu)
+{
+	ppu->ppu_status |= PPUSTATUS_VBLANK_ENABLED;
+	ppu->frame_ready_flag = 1;
+	bus_cpu_trigger_nmi(ppu->bus);
+}
+
+static void
+vblank_end(r2C02 *ppu)
+{
+	ppu->ppu_status &= ~PPUSTATUS_VBLANK_ENABLED;
 }
 
 static void
@@ -183,6 +215,7 @@ set_pixel(r2C02 *ppu, int x, int y, uint32_t color)
 	ppu->frame_buf[x + y * 256] = color;
 }
 
+/*
 static void
 debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 {
@@ -190,7 +223,7 @@ debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 	uint8_t color_idx;
 	uint32_t bg_color, fg_color;
 	int i, j;
-	int tile_addr = tile_idx * 0x10; /* 0->0, 1->16, 2->32, 3->48, 4->64 ... */
+	int tile_addr = tile_idx * 0x10; // 0->0, 1->16, 2->32, 3->48, 4->64 etc
 
 	for (i = 0; i <= 8; i++) {
 		tile_hi = vram_data_read(ppu, (uint16_t)(tile_addr + i));
@@ -213,62 +246,125 @@ debug_draw_tile(r2C02 *ppu, int x, int y, int tile_idx)
 		}
 	}
 }
+*/
+
+static inline uint32_t
+nes_palette_to_rgb(uint8_t color_idx)
+{
+	return ppu_colors[color_idx & 0x3F];
+}
+
+static void
+render_pixel(r2C02 *ppu)
+{
+	int bg_rendering_enabled = ppu->ppu_mask & PPUMASK_BACKGROUND_ENABLE;
+	int fg_rendering_enabled = ppu->ppu_mask & PPUMASK_SPRITE_ENABLE;
+	/* int rendering_enabled = bg_rendering_enabled || fg_rendering_enabled; */
+
+	int x = ppu->curr_cycle - 1;
+	int y = ppu->curr_scanline;
+
+	uint8_t bg_color = 0;
+	uint8_t fg_color = 0;
+	uint8_t final_color = 0;
+	uint32_t rgb_color = 0;
+
+	if (bg_rendering_enabled) {
+		bg_color = render_bg_pixel(ppu);
+	}
+
+	if (fg_rendering_enabled) {
+		fg_color = render_fg_pixel(ppu);
+	}
+
+	final_color = multiplex_pixels(bg_color, fg_color);
+	rgb_color = nes_palette_to_rgb(final_color);
+	set_pixel(ppu, x, y, rgb_color);
+}
+
+uint8_t
+ppu_get_frame_ready_flag(r2C02 *ppu)
+{
+	return ppu->frame_ready_flag;
+}
+
+void
+ppu_unset_frame_ready_flag(r2C02 *ppu)
+{
+	ppu->frame_ready_flag = 0;
+}
 
 void
 ppu_reset(r2C02 *ppu, struct bus *bus)
 {
+	/* TODO: do we need these lines? */
 	ppu->bus = bus;
-	ppu->curr_scanline = 240; /* TODO: use defined const */
-	ppu->curr_cycle = 340;    /* TODO: use defined const */
 	ppu->curr_frame = 0;
+	ppu->curr_scanline = 0;
+	ppu->curr_cycle = 0;
+	ppu->frame_ready_flag = 0;
 }
 
 void
 ppu_tick(r2C02 *ppu)
 {
-	int render_background = ppu->ppu_ctrl & PPUCTRL_BACKGROUND_TILE_SELECT; /* TODO: create func */
-	int render_sprite = ppu->ppu_ctrl & PPUCTRL_SPRITE_TILE_SELECT;         /* TODO: create func */
+	/* See: https://www.nesdev.org/wiki/PPU_rendering */
+	int visible_scanline = ppu->curr_scanline >= 0 && ppu->curr_scanline <= 239;
+	int visible_pixel = ppu->curr_cycle >= 1 && ppu->curr_cycle <= 256;
 
-	/* TODO: remove */
-	fprintf(
-		stderr,
-		"SCANLINE: %d\tCYCLE: %d\tBACKGROUND: %d\tSPRITE: %d\n",
-		ppu->curr_scanline,
-		ppu->curr_cycle,
-		render_background,
-		render_sprite
-	);
+	/* int prerender_scanline = ppu->curr_scanline == -1; */
+	/* int postrender_scanline = ppu->curr_scanline == 240; */
+
+	int enter_vblank = ppu->curr_scanline == 241 && ppu->curr_cycle == 1;
+	int exit_vblank = ppu->curr_scanline == 261 && ppu->curr_cycle == 1;
+
+	/* NOTE: sprite evaluation
+	 * See: https://www.nesdev.org/wiki/PPU_sprite_evaluation
+	 * cycle 1-64:      clear sprites                   (use cycle == 1)
+	 * cycle 65-256:    evaluate sprites                (use cycle == 65)
+	 * cycle 257-320:   sprite fetches                  (use cycle == 257)
+	 * cycle 321-340+0: background render pipeline init (use cycle == 321)
+	 */
+
+	if (visible_scanline && visible_pixel) {
+		render_pixel(ppu);
+	}
+
+	if (enter_vblank) {
+		vblank_start(ppu);
+	}
+
+	if (exit_vblank) {
+		vblank_end(ppu);
+	}
 
 	ppu->curr_cycle++;
 
-	if (ppu->curr_scanline == -1) {
-		/* TODO: handle */
-	}
-
-	if (ppu->curr_cycle == 341) {
-		/* TODO: handle */
-	}
-
-	if (ppu->curr_cycle > 340) {
+	if (ppu->curr_cycle == 339 && ppu->curr_scanline == 261) {
 		ppu->curr_cycle = 0;
-		ppu->curr_scanline++;
-		if (ppu->curr_scanline > 261) {
-			ppu->curr_scanline = 0;
-		}
-    }
+		ppu->curr_scanline = 0;
+	} else {
+		if (ppu->curr_cycle > 340) {
+			ppu->curr_cycle = 0;
+			ppu->curr_scanline++;
 
-	/*
-	if (render_background) {...}
-	if (render_foreground) {...}
-	*/
+			if (ppu->curr_scanline > 261) {
+				ppu->curr_scanline = -1;
+			}
+		}
+	}
 }
 
 uint8_t
 ppu_read(r2C02 *ppu, uint16_t addr)
 {
+	uint8_t res = 0;
+
 	switch (addr) {
 		case PPUSTATUS:
-			return ppu->ppu_status;
+			res = ppu->ppu_status;
+			ppu->ppu_status &= ~PPUSTATUS_VBLANK_ENABLED;
+			return res;
 		case OAMDATA:
 			break;
 		case PPUDATA:
@@ -283,10 +379,12 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 {
 	switch (addr) {
 		case PPUCTRL:
-			// TODO: create NMI
+			/* TODO: create NMI */
 			ppu->ppu_ctrl = val;
 			break;
 		case PPUMASK:
+			ppu->ppu_mask = val;
+			break;
 		case OAMADDR:
 		case OAMDATA:
 		case PPUSCROLL:

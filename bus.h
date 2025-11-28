@@ -27,6 +27,8 @@ void bus_cpu_reset(bus *);
 void bus_cpu_tick(bus *);
 void bus_cpu_trigger_nmi(bus *);
 
+uint8_t bus_ppu_get_frame_ready_flag(bus *);
+void bus_ppu_unset_frame_ready_flag(bus *);
 void bus_ppu_reset(bus *);
 void bus_ppu_tick(bus *);
 

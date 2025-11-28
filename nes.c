@@ -5,8 +5,6 @@
 #include "bus.h"
 #include "cartrige.h"
 #include "gfx.h"
-#include "raylib.h"
-
 
 typedef struct {
 	/* r2A03 apu */
@@ -17,12 +15,11 @@ typedef struct {
 	uint8_t ram[RAM_SIZE];
 } nes;
 
-// static double fps_ntsc = 60.0988;
-
 static void
 nes_cleanup(nes *n)
 {
 	cartrige_free(&n->rom);
+	gfx_destroy();
 }
 
 static void
@@ -43,12 +40,29 @@ nes_tick(nes *n)
 	bus_ppu_tick(&n->bus);
 }
 
+static uint8_t
+nes_should_exit(nes *n)
+{
+	return gfx_should_exit();
+}
+
+static void
+nes_draw(nes *n)
+{
+	uint8_t flag = bus_ppu_get_frame_ready_flag(&n->bus);
+
+	if (flag) {
+		bus_ppu_unset_frame_ready_flag(&n->bus);
+		gfx_draw_frame(n->ppu.frame_buf);
+	}
+}
+
 static void
 nes_runloop(nes *n)
 {
-	while (!gfx_should_exit()) {
+	while (!nes_should_exit(n)) {
 		nes_tick(n);
-		gfx_draw_frame(n->ppu.frame_buf);
+		nes_draw(n);
 	}
 }
 

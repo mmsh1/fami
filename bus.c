@@ -1,6 +1,6 @@
 #include <stdint.h>
-#include <stdio.h>  /* TODO remove */
-#include <stdlib.h> /* TODO remove */
+#include <stdio.h>  /* TODO: remove */
+#include <stdlib.h> /* exit */
 
 #include "bus.h"
 
@@ -41,6 +41,19 @@ void
 bus_cpu_trigger_nmi(bus *b)
 {
 	cpu_trigger_nmi(b->cpu);
+}
+
+
+uint8_t
+bus_ppu_get_frame_ready_flag(bus *b)
+{
+	return ppu_get_frame_ready_flag(b->ppu);
+}
+
+void
+bus_ppu_unset_frame_ready_flag(bus *b)
+{
+	ppu_unset_frame_ready_flag(b->ppu);
 }
 
 void
@@ -114,7 +127,7 @@ bus_write(bus *b, uint16_t addr, uint8_t val)
 	}
 	
 	if (addr >= 0x8000) {
-		fprintf(stderr, "trying to write to cartrige rom space\n"); /* TODO remove */
+		fprintf(stderr, "trying to write to cartrige rom space\n"); /* TODO: remove */
 		exit(1); /* TODO: replace with assert? */
 	}
 }

@@ -19,11 +19,13 @@ enum {
 struct bus;
 uint8_t bus_cartrige_read(struct bus *, uint16_t);
 uint8_t bus_cartrige_get_mirroring(struct bus *);
+void bus_cpu_trigger_nmi(struct bus *);
 
 typedef struct {
 	uint8_t pos_x;
 	uint8_t pos_y;
-} sprite;
+	uint8_t tile_idx;
+} sprite; /* TODO: move to source? */
 
 typedef union {
 	struct {
@@ -46,6 +48,7 @@ typedef struct {
 
 	uint8_t read_buffer;
 	uint8_t write_buffer;
+	uint8_t frame_ready_flag;
 
 	uint8_t vram[VRAM_SIZE];
 	uint8_t oam[OAM_SIZE];
@@ -66,6 +69,8 @@ typedef struct {
 	struct bus *bus;
 } r2C02;
 
+uint8_t ppu_get_frame_ready_flag(r2C02 *);
+void ppu_unset_frame_ready_flag(r2C02 *);
 void ppu_reset(r2C02 *, struct bus *);
 void ppu_tick(r2C02 *);
 uint8_t ppu_read(r2C02 *, uint16_t);
