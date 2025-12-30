@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "bus.h"
-#include "cartrige.h"
+//#include "cartrige.h"
 #include "gfx.h"
 
 typedef struct {

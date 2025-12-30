@@ -10,7 +10,7 @@ enum {
 	CHR_RAM_BANK_SIZE = 0x2000,
 };
 
-static mirroring_type
+static inline mirroring_type
 get_mirroring_type(uint8_t ctl)
 {
 	uint8_t mirroring = ctl & 0x1;
@@ -28,7 +28,7 @@ get_mirroring_type(uint8_t ctl)
 	return INVALID_MIRRORING;
 }
 
-static uint16_t
+static inline uint16_t
 get_addr_offset(const cartrige *c)
 {
 	if (c->prg_size > 1) {
@@ -112,17 +112,33 @@ cartrige_get_mirroring(const cartrige *c)
 uint8_t
 cartrige_read(const cartrige *c, uint16_t addr)
 {
+	/* TODO: this is implementation only for mapper 0.
+	* Other mappers will have different implementation
+	* */
+
+	/* we have to decide should we read CHR or PRG data */
+
 	if (addr <= 0x1FFF) {
 		return c->chr[addr];
 	}
 
-	if (addr >= 0x8000) {
+	if (addr >= 0x6000) {
 		addr &= get_addr_offset(c);
 		return c->prg[addr];
 	}
 
 	fprintf(stderr, "ERROR: ILLEGAL READ FROM %04X\n", addr);
 	return 0; // TODO how can we handle this?
+}
+
+void
+cartrige_write(cartrige *c, uint16_t addr, uint8_t val)
+{
+	/* TODO: this is implementation only for mapper 0.
+	* Other mappers will have different implementation
+	* */
+
+	/* we have to decide should we write to CHR or PRG data */
 }
 
 void

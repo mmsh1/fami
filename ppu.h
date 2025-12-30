@@ -4,8 +4,9 @@
 #include <stdint.h>
 
 enum {
+	VRAM_SIZE = 2048,
 	OAM_SIZE = 256,
-	VRAM_SIZE = 2048
+	OAM2_SIZE = 32
 };
 
 enum {
@@ -18,13 +19,16 @@ enum {
  * Therefore, we are using forward declaration. */
 struct bus;
 uint8_t bus_cartrige_read(struct bus *, uint16_t);
+void bus_cartrige_write(struct bus *, uint16_t, uint8_t);
 uint8_t bus_cartrige_get_mirroring(struct bus *);
 void bus_cpu_trigger_nmi(struct bus *);
+
 
 typedef struct {
 	uint8_t pos_x;
 	uint8_t pos_y;
 	uint8_t tile_idx;
+	uint8_t attributes;
 } sprite; /* TODO: move to source? */
 
 typedef union {
@@ -50,12 +54,16 @@ typedef struct {
 	uint8_t write_buffer;
 	uint8_t frame_ready_flag;
 
+	/* TODO: addr bg registers */
+	/* TODO: addr fg registers */
+
 	uint8_t vram[VRAM_SIZE];
 	uint8_t oam[OAM_SIZE];
+	uint8_t oam2[OAM2_SIZE];
 
-	int curr_scanline; /* [0..261] */
-	int curr_cycle;    /* [0..340] */
-	int curr_frame;
+	int scanline; /* [0..261] */
+	int cycle;    /* [0..340] */
+	int frame;
 
 	sprite sprite_table[8];
 	uint32_t frame_buf[SCREEN_WIDTH * SCREEN_HEIGHT];

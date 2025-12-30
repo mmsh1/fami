@@ -22,6 +22,7 @@ void bus_apu_tick(bus *);
 
 uint8_t bus_cartrige_get_mirroring(bus *);
 uint8_t bus_cartrige_read(bus *, uint16_t );
+void bus_cartrige_write(bus *, uint16_t, uint8_t);
 
 void bus_cpu_reset(bus *);
 void bus_cpu_tick(bus *);

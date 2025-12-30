@@ -1,8 +1,6 @@
 #include "ines.h"
 #include "ppu.h"
 
-#include <stdint.h>
-
 enum {
 	PPUCTRL = 0x2000,
 	PPUMASK = 0x2001,
@@ -35,7 +33,9 @@ enum {
 };
 
 enum {
-	PPUSTATUS_VBLANK_ENABLED = 0x80 /* 1000 0000 -> (1 << 7) */
+	PPUSTATUS_VBLANK_ENABLED = 0x80,  /* 1000 0000 -> (1 << 7) */
+	PPUSTATUS_SPRITE_ZERO_HIT = 0x40, /* 0100 0000 -> (1 << 6) */
+	PPUSTATUS_SPRITE_OVERFLOW = 0x20  /* 0010 0000 -> (1 << 5) */
 };
 
 static uint8_t
@@ -111,6 +111,29 @@ nametable_read(r2C02 *ppu, uint16_t addr)
 	return ppu->vram[addr];
 }
 
+static void
+nametable_write(r2C02 *ppu, uint16_t addr, uint8_t val)
+{
+	mirroring_type mt = bus_cartrige_get_mirroring(ppu->bus);
+
+	switch (mt) {
+		case HORIZONTAL_MIRRORING:
+			addr = ((addr / 2) & 0x400) + (addr % 0x400);
+			break;
+		case VERTICAL_MIRRORING:
+			addr %= 0x800;
+			break;
+		case SINGLE_SCREEN_A:
+		case SINGLE_SCREEN_B:
+		case FOUR_SCREEN:
+		case INVALID_MIRRORING: // TODO:
+		default:
+			addr -= 0x2000;
+	}
+
+	ppu->vram[addr] = val;
+}
+
 static uint8_t
 palette_read(uint16_t addr)
 {
@@ -128,16 +151,40 @@ palette_read(uint16_t addr)
 	return ppu_palette[addr];
 }
 
+static void
+palette_write(uint16_t addr, uint8_t val)
+{
+	switch (addr) {
+		case 0x3F10:
+		case 0x3F14:
+		case 0x3F18:
+		case 0x3F1C:
+			addr -= 0x10;
+	}
+
+	addr -= 0x3F00;
+	addr %= 0x20;
+
+	ppu_palette[addr] = val;
+}
+
 static uint8_t
 render_bg_pixel(r2C02 *ppu)
 {
-	return 0x01;
+	uint8_t data;
+
+	if (!(ppu->ppu_mask & PPUMASK_BACKGROUND_ENABLE))  { /* TODO: rewrite */
+		return 0;
+	}
+
+	return data & 0x0F;
 }
 
 static uint8_t
 render_fg_pixel(r2C02 *ppu)
 {
-	return 0;
+	/* TODO: */
+	return 0x1;
 }
 
 
@@ -191,12 +238,20 @@ vram_data_read(r2C02 *ppu, uint16_t addr)
 static void
 vram_data_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 {
-	(void) ppu;
-	(void) addr;
-	(void) val;
+	if (addr < 0x2000) {
+		bus_cartrige_write(ppu->bus, addr, val);
+	}
+
+	if (addr < 0x3F00) {
+		nametable_write(ppu, addr, val);
+	}
+
+	if (addr < 0x4000) {
+		palette_write(addr, val);
+	}
 }
 
-static void
+static inline void
 vram_reg_write(r2C02 *ppu, uint8_t val)
 {
 	if (ppu->vram_reg.write_flag == 0) {
@@ -259,10 +314,9 @@ render_pixel(r2C02 *ppu)
 {
 	int bg_rendering_enabled = ppu->ppu_mask & PPUMASK_BACKGROUND_ENABLE;
 	int fg_rendering_enabled = ppu->ppu_mask & PPUMASK_SPRITE_ENABLE;
-	/* int rendering_enabled = bg_rendering_enabled || fg_rendering_enabled; */
 
-	int x = ppu->curr_cycle - 1;
-	int y = ppu->curr_scanline;
+	int x = ppu->cycle - 1;
+	int y = ppu->scanline;
 
 	uint8_t bg_color = 0;
 	uint8_t fg_color = 0;
@@ -282,6 +336,35 @@ render_pixel(r2C02 *ppu)
 	set_pixel(ppu, x, y, rgb_color);
 }
 
+static void
+clear_sprites(r2C02 *ppu)
+{
+	int i;
+	for (i = 0; i < OAM2_SIZE; i++) {
+		ppu->oam2[i] = 0;
+	}
+}
+
+static void
+evaluate_sprites(r2C02 *ppu)
+{
+	/* TODO: here we should search OAM in order to find
+	 * sprites that will be on current scanline. We choose
+	 * the first eight.
+	 * If eight sprites were found, it checks (in a wrongly-implemented fashion)
+	 * for further sprites on the scanline to see if the sprite overflow flag
+	 * should be set. Then, using the details for the eight (or fewer) sprites
+	 * chosen, it determines which pixels each has on the scanline and where
+	 * to draw them.
+	 */
+}
+
+static void
+fetch_sprites(r2C02 *ppu)
+{
+
+}
+
 uint8_t
 ppu_get_frame_ready_flag(r2C02 *ppu)
 {
@@ -299,32 +382,61 @@ ppu_reset(r2C02 *ppu, struct bus *bus)
 {
 	/* TODO: do we need these lines? */
 	ppu->bus = bus;
-	ppu->curr_frame = 0;
-	ppu->curr_scanline = 0;
-	ppu->curr_cycle = 0;
+	ppu->frame = 0;
+	ppu->scanline = 0;
+	ppu->cycle = 0;
 	ppu->frame_ready_flag = 0;
 }
 
 void
 ppu_tick(r2C02 *ppu)
 {
+	int visible_scanline, visible_pixel;
+	int enter_vblank, exit_vblank;
+	/* int prerender_scanline, postrender_scanline; */
+
+	ppu->cycle++;
+
+	/* TODO: check odd frame? */
+
+	if (ppu->cycle == 341) {
+		ppu->cycle = 0;
+		ppu->scanline++;
+
+		if (ppu->scanline == 261) {
+			ppu->scanline = -1;
+			ppu->frame++;
+		}
+	}
+
 	/* See: https://www.nesdev.org/wiki/PPU_rendering */
-	int visible_scanline = ppu->curr_scanline >= 0 && ppu->curr_scanline <= 239;
-	int visible_pixel = ppu->curr_cycle >= 1 && ppu->curr_cycle <= 256;
+	visible_scanline = ppu->scanline >= 0 && ppu->scanline <= 239;
+	visible_pixel = ppu->cycle >= 1 && ppu->cycle <= 256;
 
-	/* int prerender_scanline = ppu->curr_scanline == -1; */
-	/* int postrender_scanline = ppu->curr_scanline == 240; */
+	/* prerender_scanline = ppu->scanline == -1; */
+	/* postrender_scanline = ppu->scanline == 240; */
 
-	int enter_vblank = ppu->curr_scanline == 241 && ppu->curr_cycle == 1;
-	int exit_vblank = ppu->curr_scanline == 261 && ppu->curr_cycle == 1;
+	enter_vblank = ppu->scanline == 241 && ppu->cycle == 1;
+	exit_vblank = ppu->scanline == 261 && ppu->cycle == 1;
 
 	/* NOTE: sprite evaluation
 	 * See: https://www.nesdev.org/wiki/PPU_sprite_evaluation
 	 * cycle 1-64:      clear sprites                   (use cycle == 1)
 	 * cycle 65-256:    evaluate sprites                (use cycle == 65)
-	 * cycle 257-320:   sprite fetches                  (use cycle == 257)
+	 * cycle 257-320:   fetch sprites                   (use cycle == 257)
 	 * cycle 321-340+0: background render pipeline init (use cycle == 321)
 	 */
+	switch (ppu->cycle) {
+		case 1:
+			clear_sprites(ppu);
+			break;
+		case 65:
+			evaluate_sprites(ppu);
+			break;
+		case 257:
+			fetch_sprites(ppu);
+			break;
+	}
 
 	if (visible_scanline && visible_pixel) {
 		render_pixel(ppu);
@@ -336,22 +448,6 @@ ppu_tick(r2C02 *ppu)
 
 	if (exit_vblank) {
 		vblank_end(ppu);
-	}
-
-	ppu->curr_cycle++;
-
-	if (ppu->curr_cycle == 339 && ppu->curr_scanline == 261) {
-		ppu->curr_cycle = 0;
-		ppu->curr_scanline = 0;
-	} else {
-		if (ppu->curr_cycle > 340) {
-			ppu->curr_cycle = 0;
-			ppu->curr_scanline++;
-
-			if (ppu->curr_scanline > 261) {
-				ppu->curr_scanline = -1;
-			}
-		}
 	}
 }
 
@@ -366,7 +462,7 @@ ppu_read(r2C02 *ppu, uint16_t addr)
 			ppu->ppu_status &= ~PPUSTATUS_VBLANK_ENABLED;
 			return res;
 		case OAMDATA:
-			break;
+			return ppu->oam[ppu->oam_addr];
 		case PPUDATA:
 			return vram_data_read(ppu, vram_addr_read(ppu)); /* TODO: move vram_addr_read into vram_data_read */
 	}
@@ -386,8 +482,14 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 			ppu->ppu_mask = val;
 			break;
 		case OAMADDR:
+			ppu->oam_addr = val;
+			break;
 		case OAMDATA:
+			ppu->oam[ppu->oam_addr] = val;
+			ppu->oam_addr++;
+			break;
 		case PPUSCROLL:
+			/* TODO: */
 			break;
 		case PPUADDR:
 			vram_reg_write(ppu, val);
@@ -396,6 +498,7 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 			vram_data_write(ppu, vram_addr_read(ppu), val); /* TODO: move vram_addr_read into vram_data_write */
 			break;
 		case OAMDMA:
+			/* TODO: */
 			break;
 	}
 

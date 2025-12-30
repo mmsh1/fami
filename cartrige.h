@@ -19,5 +19,6 @@ cartrige cartrige_create(const char *);
 void cartrige_free(cartrige *);
 uint8_t cartrige_get_mirroring(const cartrige *);
 uint8_t cartrige_read(const cartrige *, uint16_t);
+void cartrige_write(cartrige *, uint16_t, uint8_t);
 
 #endif /* NES_CARTRIGE_H */

@@ -26,6 +26,12 @@ bus_cartrige_read(bus *b, uint16_t addr)
 }
 
 void
+bus_cartrige_write(bus *b, uint16_t addr, uint8_t val)
+{
+	cartrige_write(&b->rom, addr, val);
+}
+
+void
 bus_cpu_reset(bus *b)
 {
 	cpu_reset(b->cpu, b);
