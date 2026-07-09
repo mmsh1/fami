@@ -50,6 +50,7 @@ Test(cpu, reset) {
 	cr_assert(eq(u8, cpu.A, 0));
 	cr_assert(eq(u8, cpu.X, 0));
 	cr_assert(eq(u8, cpu.Y, 0));
+	cr_assert(eq(u8, cpu.stall, 7));
 }
 
 Test(cpu, push8) {
@@ -73,6 +74,8 @@ Test(cpu, jsr) {
 	write_dummy_reset(cpu.bus, 0x8000);
 
 	cpu_reset(&cpu, cpu.bus);
+	cpu.stall = 1;
+
 	cpu_tick(&cpu);
 	cr_assert(eq(u16, cpu.PC, 0xFFF0));
 	cr_assert(eq(u16, pop16(&cpu), 0x8002)); /* 0x8000 + 1 (when read8) + 1 (when pushing in JSR) */
@@ -87,6 +90,8 @@ Test(cpu, lda_zpg) {
 	write_dummy_reset(cpu.bus, 0x8000);
 
 	cpu_reset(&cpu, cpu.bus);
+	cpu.stall = 1;
+
 	cpu_tick(&cpu);
 	cr_assert(eq(u8, cpu.A, 0x55));
 }
@@ -100,6 +105,8 @@ Test(cpu, sty_zpg) {
 	
 	cpu_reset(&cpu, cpu.bus);
 	cpu.Y = 42;
+	cpu.stall = 1;
+
 	cpu_tick(&cpu);
 	cr_assert(eq(u8, bus_read(cpu.bus, 0x10), cpu.Y));
 }
@@ -113,6 +120,8 @@ Test(cpu, sta_zpg) {
 
 	cpu_reset(&cpu, cpu.bus);
 	cpu.A = 42;
+	cpu.stall = 1;
+
 	cpu_tick(&cpu);
 	cr_assert(eq(u8, bus_read(cpu.bus, 0x10), cpu.A));
 }
@@ -126,6 +135,8 @@ Test(cpu, stx_zpg) {
 	
 	cpu_reset(&cpu, cpu.bus);
 	cpu.X = 42;
+	cpu.stall = 1;
+
 	cpu_tick(&cpu);
 	cr_assert(eq(u8, bus_read(cpu.bus, 0x10), cpu.X));
 }
