@@ -29,7 +29,7 @@ typedef struct {
 	uint8_t pos_y;
 	uint8_t tile_idx;
 	uint8_t attributes;
-} sprite; /* TODO: move to source? */
+} sprite;
 
 typedef union {
 	struct {
@@ -53,9 +53,7 @@ typedef struct {
 	uint8_t read_buffer;
 	uint8_t write_buffer;
 	uint8_t frame_ready_flag;
-
-	/* TODO: addr bg registers */
-	/* TODO: addr fg registers */
+	uint8_t suppress_nmi_flag;
 
 	uint8_t vram[VRAM_SIZE];
 	uint8_t oam[OAM_SIZE];
@@ -69,8 +67,23 @@ typedef struct {
 	uint32_t frame_buf[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 	struct {
+		uint16_t tile_lo;
+		uint16_t tile_hi;
+		uint16_t attr_lo;
+		uint16_t attr_hi;
+	} shift;
+
+	struct {
+		uint8_t tile_lo;
+		uint8_t tile_hi;
+		uint8_t attr;
+		uint8_t tile_id;
+	} next_tile;
+
+	struct {
 		address curr_addr;
 		address tmp_addr;
+		uint8_t fine_x_scroll;
 		uint8_t write_flag;
 	} vram_reg;
 
