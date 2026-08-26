@@ -3,8 +3,9 @@
 #include <stdlib.h>
 
 #include "bus.h"
-//#include "cartrige.h"
 #include "gfx.h"
+
+#define RAM_SIZE 0x10000
 
 typedef struct {
 	/* r2A03 apu */
@@ -40,8 +41,8 @@ nes_tick(nes *n)
 	bus_ppu_tick(&n->bus);
 }
 
-static uint8_t
-nes_should_exit(nes *n)
+static int
+nes_should_exit()
 {
 	return gfx_should_exit();
 }
@@ -60,7 +61,7 @@ nes_draw(nes *n)
 static void
 nes_runloop(nes *n)
 {
-	while (!nes_should_exit(n)) {
+	while (!nes_should_exit()) {
 		nes_tick(n);
 		nes_draw(n);
 	}
@@ -70,7 +71,6 @@ static void
 nes_init(nes *n)
 {
 	bus_init(&n->bus, &n->cpu, &n->ppu, n->ram, n->rom);
-	bus_ram_reset(&n->bus);
 	bus_cpu_reset(&n->bus);
 	bus_ppu_reset(&n->bus);
 	gfx_init(); // TODO: create layer for holding array

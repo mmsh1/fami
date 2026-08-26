@@ -5,7 +5,6 @@
 
 #include "cartrige.h"
 #include "cpu.h"
-#include "mem.h"
 #include "ppu.h"
 
 typedef struct bus {
@@ -27,13 +26,13 @@ void bus_cartrige_write(bus *, uint16_t, uint8_t);
 void bus_cpu_reset(bus *);
 void bus_cpu_tick(bus *);
 void bus_cpu_trigger_nmi(bus *);
+uint64_t bus_cpu_get_total_cycles(bus *);
+void bus_cpu_set_stall_cycles(bus *, int);
 
 uint8_t bus_ppu_get_frame_ready_flag(bus *);
 void bus_ppu_unset_frame_ready_flag(bus *);
 void bus_ppu_reset(bus *);
 void bus_ppu_tick(bus *);
-
-void bus_ram_reset(bus *);
 
 uint8_t bus_read(bus *, uint16_t);
 void bus_write(bus *, uint16_t, uint8_t);

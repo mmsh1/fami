@@ -5,8 +5,16 @@
 
 enum {
 	VRAM_SIZE = 2048,
-	OAM_SIZE = 256,
-	OAM2_SIZE = 32
+};
+
+enum {
+	OAM_SIZE_BYTES = 256,
+	OAM2_SIZE_BYTES = 32,
+};
+
+enum {
+	OAM_SIZE_SPRITES = OAM_SIZE_BYTES / 4,
+	OAM2_SIZE_SPRITES = OAM2_SIZE_BYTES / 4
 };
 
 enum {
@@ -22,14 +30,24 @@ uint8_t bus_cartrige_read(struct bus *, uint16_t);
 void bus_cartrige_write(struct bus *, uint16_t, uint8_t);
 uint8_t bus_cartrige_get_mirroring(struct bus *);
 void bus_cpu_trigger_nmi(struct bus *);
-
+uint64_t bus_cpu_get_total_cycles(struct bus *);
+void bus_cpu_set_stall_cycles(struct bus *, int);
+uint8_t bus_read(struct bus *, uint16_t);
 
 typedef struct {
-	uint8_t pos_x;
 	uint8_t pos_y;
 	uint8_t tile_idx;
 	uint8_t attributes;
+	uint8_t pos_x;
 } sprite;
+
+typedef struct {
+	uint8_t x;
+	uint8_t attributes;
+	uint8_t tile_lo;
+	uint8_t tile_hi;
+	uint8_t shift_counter;
+} sprite_cache;
 
 typedef union {
 	struct {
@@ -38,6 +56,13 @@ typedef union {
 	} part;
 	uint16_t whole;
 } address;
+
+typedef struct {
+	address curr_addr;
+	address tmp_addr;
+	uint8_t fine_x_scroll;
+	uint8_t write_flag;
+} loopy_reg;
 
 typedef struct {
 	uint8_t ppu_ctrl;   /* PPUCTRL   $2000 */
@@ -56,14 +81,24 @@ typedef struct {
 	uint8_t suppress_nmi_flag;
 
 	uint8_t vram[VRAM_SIZE];
-	uint8_t oam[OAM_SIZE];
-	uint8_t oam2[OAM2_SIZE];
+
+	union {
+		sprite sprites[OAM_SIZE_SPRITES];
+		uint8_t bytes[OAM_SIZE_BYTES];
+	} oam;
+
+	union {
+		sprite sprites[OAM2_SIZE_SPRITES];
+		uint8_t bytes[OAM2_SIZE_BYTES];
+	} oam2;
+
+	sprite_cache fetched_sprites[8];
 
 	int scanline; /* [0..261] */
 	int cycle;    /* [0..340] */
 	int frame;
+	int active_sprites;
 
-	sprite sprite_table[8];
 	uint32_t frame_buf[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 	struct {
@@ -80,12 +115,7 @@ typedef struct {
 		uint8_t tile_id;
 	} next_tile;
 
-	struct {
-		address curr_addr;
-		address tmp_addr;
-		uint8_t fine_x_scroll;
-		uint8_t write_flag;
-	} vram_reg;
+	loopy_reg vram_reg;
 
 	struct bus *bus;
 } r2C02;

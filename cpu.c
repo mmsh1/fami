@@ -1549,6 +1549,18 @@ cpu_trigger_nmi(r2A03 *cpu)
 	cpu->nmi = 1;
 }
 
+uint64_t
+cpu_get_total_cycles(r2A03 *cpu)
+{
+	return cpu->total;
+}
+
+void
+cpu_set_stall_cycles(r2A03 *cpu, int cycles)
+{
+	cpu->stall = cycles;
+}
+
 typedef union {
 	struct {
 		uint8_t lo;

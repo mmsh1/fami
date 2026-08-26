@@ -42,12 +42,18 @@ enum {
 };
 
 enum {
-	COARSE_X_SCROLL = 0x001F, /* 0000 0000 0001 1111 */
-	COARSE_Y_SCROLL = 0x03E0, /* 0000 0011 1110 0000 */
-	NAMETABLE_X = 0x0400,     /* 0000 0100 0000 0000 */
+	FINE_Y_SCROLL = 0x7000,   /* 0111 0000 0000 0000 */
 	NAMETABLE_Y = 0x0800,     /* 0000 1000 0000 0000 */
-	/* NAMETABLE = 0x0C00,       0000 1100 0000 0000 */
-	FINE_Y_SCROLL = 0x7000    /* 0111 0000 0000 0000 */
+	NAMETABLE_X = 0x0400,     /* 0000 0100 0000 0000 */
+	COARSE_Y_SCROLL = 0x03E0, /* 0000 0011 1110 0000 */
+	COARSE_X_SCROLL = 0x001F  /* 0000 0000 0001 1111 */
+};
+
+enum {
+	SPRITE_ATTR_VERTICAL_FLIP = 0x80,   /* 1000 0000 -> (1 << 7)*/
+	SPRITE_ATTR_HORIZONTAL_FLIP = 0x40, /* 0100 0000 -> (1 << 6)*/
+	SPRITE_ATTR_PRIORITY = 0x20,        /* 0010 0000 -> (1 << 5)*/
+	SPRITE_ATTR_PALETTE = 0x03          /* 0000 0011 */
 };
 
 static uint8_t
@@ -78,32 +84,63 @@ ppu_colors[0x40] = {
 
 static inline uint8_t get_color_idx_in_palette(uint8_t lo, uint8_t hi) { return (lo & 0x1) << 1 | (hi & 0x1); }  /* from 0 to 3 */
 
-static inline int in_range(int num, int lo, int hi) { return (num >= lo) && (num <= hi); };
+static inline int in_range(int num, int lo, int hi) { return (num >= lo) && (num <= hi); }
 
-static inline int is_bg_tile_select_mode_enabled(uint8_t ctrl) { return ctrl & PPUCTRL_BACKGROUND_TILE_SELECT; }
-static inline int is_bg_rendering_enabled(uint8_t mask)        { return mask & PPUMASK_BACKGROUND_ENABLE; }
-static inline int is_fg_rendering_enabled(uint8_t mask)        { return mask & PPUMASK_SPRITE_ENABLE; }
-static inline int is_increment_mode_enabled(uint8_t ctrl)      { return ctrl & PPUCTRL_INCREMENT_MODE; }
-static inline int is_nmi_enabled(uint8_t ctrl)                 { return ctrl & PPUCTRL_NMI_ENABLE; }
-static inline int is_vblank_enabled(uint8_t status)            { return status & PPUSTATUS_VBLANK_ENABLED; }
+static inline int get_bit(uint8_t reg, uint8_t mask)     { return reg & mask; }
+static inline void set_bit(uint8_t *reg, uint8_t mask)   { *reg |= mask; }
+static inline void unset_bit(uint8_t *reg, uint8_t mask) { *reg &= ~mask; }
+
+static inline int is_bg_tile_select_mode_enabled(uint8_t ctrl) { return get_bit(ctrl, PPUCTRL_BACKGROUND_TILE_SELECT); }
+static inline int is_increment_mode_enabled(uint8_t ctrl)      { return get_bit(ctrl, PPUCTRL_INCREMENT_MODE); }
+static inline int is_nmi_enabled(uint8_t ctrl)                 { return get_bit(ctrl, PPUCTRL_NMI_ENABLE); }
+static inline int is_tall_sprites_enabled(uint8_t ctrl)        { return get_bit(ctrl, PPUCTRL_SPRITE_HEIGHT); }
+static inline int is_sprite_tile_select_enabled(uint8_t ctrl)  { return get_bit(ctrl, PPUCTRL_SPRITE_TILE_SELECT); }
+static inline int is_bg_left_col_enabled(uint8_t mask)         { return get_bit(mask, PPUMASK_BACKGROUND_LEFT_COL_ENABLE); }
+static inline int is_fg_left_col_enabled(uint8_t mask)         { return get_bit(mask, PPUMASK_SPRITE_LEFT_COL_ENABLE); }
+static inline int is_bg_rendering_enabled(uint8_t mask)        { return get_bit(mask, PPUMASK_BACKGROUND_ENABLE); }
+static inline int is_fg_rendering_enabled(uint8_t mask)        { return get_bit(mask, PPUMASK_SPRITE_ENABLE); }
+static inline int is_vblank_enabled(uint8_t status)            { return get_bit(status, PPUSTATUS_VBLANK_ENABLED); }
 static inline int is_rendering_enabled(uint8_t mask)           { return is_fg_rendering_enabled(mask) || is_bg_rendering_enabled(mask); }
+static inline int get_sprites_height(uint8_t ctrl)             { return is_tall_sprites_enabled(ctrl) ? 16 : 8; }
+
+static inline void set_status_sprite_overflow(uint8_t *status) { set_bit(status, PPUSTATUS_SPRITE_OVERFLOW); }
+static inline void set_status_vblank_enabled(uint8_t *status)  { set_bit(status, PPUSTATUS_VBLANK_ENABLED); }
+
+static inline void unset_status_vblank_enabled(uint8_t *status) { unset_bit(status, PPUSTATUS_VBLANK_ENABLED); }
 
 static inline uint16_t loopy_get(uint16_t reg, uint16_t mask, uint8_t shift) { return (reg & mask) >> shift; }
-static inline uint16_t loopy_get_coarse_x(uint16_t reg)                      { return loopy_get(reg, COARSE_X_SCROLL, 0); }
-static inline uint16_t loopy_get_coarse_y(uint16_t reg)                      { return loopy_get(reg, COARSE_Y_SCROLL, 5); }
-static inline uint16_t loopy_get_fine_y(uint16_t reg)                        { return loopy_get(reg, FINE_Y_SCROLL, 12); }
-static inline uint16_t loopy_get_nametable_x(uint16_t reg)                   { return loopy_get(reg, NAMETABLE_X, 10); }
-static inline uint16_t loopy_get_nametable_y(uint16_t reg)                   { return loopy_get(reg, NAMETABLE_Y, 11); }
+static inline uint16_t loopy_get_coarse_x(address reg)                       { return loopy_get(reg.whole, COARSE_X_SCROLL, 0); }
+static inline uint16_t loopy_get_coarse_y(address reg)                       { return loopy_get(reg.whole, COARSE_Y_SCROLL, 5); }
+static inline uint16_t loopy_get_fine_y(address reg)                         { return loopy_get(reg.whole, FINE_Y_SCROLL, 12); }
+static inline uint16_t loopy_get_nametable_x(address reg)                    { return loopy_get(reg.whole, NAMETABLE_X, 10); }
+static inline uint16_t loopy_get_nametable_y(address reg)                    { return loopy_get(reg.whole, NAMETABLE_Y, 11); }
 
 static inline void loopy_set(uint16_t *reg, uint16_t mask, uint16_t val, uint8_t shift) { *reg = (*reg & ~mask) | ((val << shift) & mask); }
-static inline void loopy_set_coarse_x(uint16_t *reg, uint16_t val)                      { loopy_set(reg, COARSE_X_SCROLL, val, 0); }
-static inline void loopy_set_coarse_y(uint16_t *reg, uint16_t val)                      { loopy_set(reg, COARSE_Y_SCROLL, val, 5); }
-static inline void loopy_set_fine_y(uint16_t *reg, uint16_t val)                        { loopy_set(reg, FINE_Y_SCROLL, val, 12); }
-static inline void loopy_set_nametable_x(uint16_t *reg, uint16_t val)                   { loopy_set(reg, NAMETABLE_X, val, 10); }
-static inline void loopy_set_nametable_y(uint16_t *reg, uint16_t val)                   { loopy_set(reg, NAMETABLE_Y, val, 11); }
+static inline void loopy_set_coarse_x(address *reg, uint16_t val)                       { loopy_set(&reg->whole, COARSE_X_SCROLL, val, 0); }
+static inline void loopy_set_coarse_y(address *reg, uint16_t val)                       { loopy_set(&reg->whole, COARSE_Y_SCROLL, val, 5); }
+static inline void loopy_set_fine_y(address *reg, uint16_t val)                         { loopy_set(&reg->whole, FINE_Y_SCROLL, val, 12); }
+static inline void loopy_set_nametable_x(address *reg, uint16_t val)                    { loopy_set(&reg->whole, NAMETABLE_X, val, 10); }
+static inline void loopy_set_nametable_y(address *reg, uint16_t val)                    { loopy_set(&reg->whole, NAMETABLE_Y, val, 11); }
 
-static inline void loopy_toggle_nametable_x(uint16_t *reg) { *reg ^= NAMETABLE_X; }
-static inline void loopy_toggle_nametable_y(uint16_t *reg) { *reg ^= NAMETABLE_Y; }
+static inline void loopy_upd_from_tmp_coarse_x(loopy_reg *reg)    { loopy_set_coarse_x(&reg->curr_addr, loopy_get_coarse_x(reg->tmp_addr)); }
+static inline void loopy_upd_from_tmp_coarse_y(loopy_reg *reg)    { loopy_set_coarse_y(&reg->curr_addr, loopy_get_coarse_y(reg->tmp_addr)); }
+static inline void loopy_upd_from_tmp_fine_y(loopy_reg *reg)      { loopy_set_fine_y(&reg->curr_addr, loopy_get_fine_y(reg->tmp_addr)); }
+static inline void loopy_upd_from_tmp_nametable_x(loopy_reg *reg) { loopy_set_nametable_x(&reg->curr_addr, loopy_get_nametable_x(reg->tmp_addr)); }
+static inline void loopy_upd_from_tmp_nametable_y(loopy_reg *reg) { loopy_set_nametable_y(&reg->curr_addr, loopy_get_nametable_y(reg->tmp_addr)); }
+
+static inline void loopy_toggle_nametable_x(address *reg) { reg->whole ^= NAMETABLE_X; }
+static inline void loopy_toggle_nametable_y(address *reg) { reg->whole ^= NAMETABLE_Y; }
+
+static inline sprite
+create_empty_sprite()
+{
+	return (sprite){
+		.pos_y = 0xFF,
+		.tile_idx = 0xFF,
+		.attributes = 0xFF,
+		.pos_x = 0xFF
+	};
+}
 
 static inline void
 set_pixel(r2C02 *ppu, int x, int y, uint32_t color)
@@ -118,7 +155,7 @@ set_pixel(r2C02 *ppu, int x, int y, uint32_t color)
 }
 
 static inline uint8_t
-multiplex_pixels(uint8_t bg_pixel, uint8_t fg_pixel)
+select_priority(uint8_t bg_pixel, uint8_t fg_pixel)
 {
 	return (fg_pixel == 0) ? bg_pixel : fg_pixel;
 	/* TODO: add sprite priority */
@@ -223,42 +260,94 @@ load_next_tile(r2C02 *ppu)
 }
 
 static uint8_t
-render_bg_pixel(r2C02 *ppu)
+get_bg_pixel_addr(r2C02 *ppu)
 {
 	uint8_t bit_hi, bit_lo, color;
 	uint8_t pal_hi, pal_lo;
 	uint8_t x_scroll = ppu->vram_reg.fine_x_scroll;
+	uint16_t mask = 0x8000 >> x_scroll;
+	uint16_t shift = 15 - x_scroll;
 	uint16_t palette;
-	uint16_t mask = 0x8000 >> ppu->vram_reg.fine_x_scroll;
 	
-	if (!is_bg_rendering_enabled(ppu->ppu_mask)) {
+	if (!is_bg_left_col_enabled(ppu->ppu_mask) && ppu->cycle < 9) {
 		return 0;
 	}
 
-	if (!(ppu->ppu_mask & PPUMASK_BACKGROUND_LEFT_COL_ENABLE) && ppu->cycle < 9) {
-		return 0;
-	}
-
-	bit_hi = ((ppu->shift.tile_hi & mask) >> (15 - x_scroll)) & 0x01;
-	bit_lo = ((ppu->shift.tile_lo & mask) >> (15 - x_scroll)) & 0x01;
+	bit_hi = ((ppu->shift.tile_hi & mask) >> shift) & 0x01;
+	bit_lo = ((ppu->shift.tile_lo & mask) >> shift) & 0x01;
 	color = (bit_hi << 1) | bit_lo;
 
 	if (color == 0) {
 		return 0;
 	}
 
-	pal_hi = ((ppu->shift.attr_hi & mask) >> (15 - x_scroll)) & 0x01;
-	pal_lo = ((ppu->shift.attr_lo & mask) >> (15 - x_scroll)) & 0x01;
+	pal_hi = ((ppu->shift.attr_hi & mask) >> shift) & 0x01;
+	pal_lo = ((ppu->shift.attr_lo & mask) >> shift) & 0x01;
 	palette = (pal_hi << 1) | (pal_lo);
 
 	return palette * 4 + color;
 }
 
 static uint8_t
-render_fg_pixel(r2C02 *ppu)
+get_fg_pixel_addr(r2C02 *ppu)
 {
-	/* TODO: */
-	return 0x0;
+	uint8_t bit_hi, bit_lo, color;
+	uint8_t sprite_x;
+	uint8_t pixel_in_sprite;
+	uint8_t bit_pos;
+	uint16_t color_idx;
+	uint16_t palette;
+	int i;
+	int x = ppu->cycle - 1;
+
+	if (!is_fg_left_col_enabled(ppu->ppu_mask) && ppu->cycle < 9) {
+		return 0;
+	}
+
+	for (i = 7; i >= 0; i--) {
+		sprite_x = ppu->fetched_sprites[i].x;
+
+		if (sprite_x == 0xFF) {
+			continue;
+		}
+
+		if (x < sprite_x || x >= sprite_x + 8) {
+			continue;
+		}
+
+		pixel_in_sprite = x - sprite_x;
+
+		bit_pos = 7 - pixel_in_sprite;
+		bit_hi = (ppu->fetched_sprites[i].tile_hi >> bit_pos) & 0x01;
+		bit_lo = (ppu->fetched_sprites[i].tile_lo >> bit_pos) & 0x01;
+		color = (bit_hi << 1) | bit_lo;
+
+		if (color == 0) {
+			continue;
+		}
+
+		palette = 4 + (ppu->fetched_sprites[i].attributes & SPRITE_ATTR_PALETTE);
+		return palette * 4 + color;
+	}
+
+	return 0;
+}
+
+static void
+oam_dma_write(r2C02 *ppu, uint8_t idx)
+{
+	/* TODO: should we set stall cycles or add them? investigate */
+	uint64_t total = bus_cpu_get_total_cycles(ppu->bus);
+	uint64_t stall = total % 2 == 1 ? 513 : 514;
+	uint8_t addr;
+	int i;
+
+	bus_cpu_set_stall_cycles(ppu->bus, stall);
+
+	for (i = 0; i < OAM_SIZE_BYTES; i++) {
+		addr = ppu->oam_addr + i;
+		ppu->oam.bytes[addr] = bus_read(ppu->bus, idx * OAM_SIZE_BYTES + i);
+	}
 }
 
 static void
@@ -272,8 +361,7 @@ scroll_reg_write(r2C02 *ppu, uint8_t val)
 			x:              FGH <- d: .....FGH
 			w:                  <- 1
 		*/
-		//loopy_set_coarse_x(&ppu->vram_reg.tmp_addr.whole, (val & 0xF8) >> 3);
-		loopy_set_coarse_x(&ppu->vram_reg.tmp_addr.whole, val >> 3);
+		loopy_set_coarse_x(&ppu->vram_reg.tmp_addr, val >> 3);
 		ppu->vram_reg.fine_x_scroll = val & 0x7;
 		ppu->vram_reg.write_flag = 1;
 	} else {
@@ -282,8 +370,8 @@ scroll_reg_write(r2C02 *ppu, uint8_t val)
 			t: FGH..AB CDE..... <- d: ABCDEFGH
 			w:                  <- 0
 		*/
-		loopy_set_fine_y(&ppu->vram_reg.tmp_addr.whole, val & 0x7);
-		loopy_set_coarse_y(&ppu->vram_reg.tmp_addr.whole, val >> 3);
+		loopy_set_fine_y(&ppu->vram_reg.tmp_addr, val & 0x7);
+		loopy_set_coarse_y(&ppu->vram_reg.tmp_addr, val >> 3);
 		ppu->vram_reg.write_flag = 0;
 	}
 }
@@ -291,16 +379,16 @@ scroll_reg_write(r2C02 *ppu, uint8_t val)
 static void
 vblank_end(r2C02 *ppu)
 {
-	ppu->ppu_status &= ~PPUSTATUS_VBLANK_ENABLED;
+	unset_status_vblank_enabled(&ppu->ppu_status);
 }
 
 static void
 vblank_start(r2C02 *ppu)
 {
-	ppu->ppu_status |= PPUSTATUS_VBLANK_ENABLED;
+	set_status_vblank_enabled(&ppu->ppu_status);
 	ppu->frame_ready_flag = 1;
 
-	if (ppu->ppu_ctrl & PPUCTRL_NMI_ENABLE) {
+	if (is_nmi_enabled(ppu->ppu_ctrl)) {
 		bus_cpu_trigger_nmi(ppu->bus);
 	}
 }
@@ -357,13 +445,13 @@ vram_reg_write(r2C02 *ppu, uint8_t val)
 {
 	if (ppu->vram_reg.write_flag == 0) {
 		ppu->vram_reg.tmp_addr.part.hi = val;
-		ppu->vram_reg.tmp_addr.part.lo = 0; /*TODO:?*/
+		ppu->vram_reg.tmp_addr.part.lo = 0;
 		ppu->vram_reg.write_flag = 1;
 	} else {
 		ppu->vram_reg.tmp_addr.part.lo = val;
 		ppu->vram_reg.curr_addr = ppu->vram_reg.tmp_addr;
 		ppu->vram_reg.tmp_addr.whole = 0;
-		ppu->vram_reg.write_flag = 0; /*TODO:?*/
+		ppu->vram_reg.write_flag = 0;
 	}
 }
 
@@ -376,147 +464,195 @@ nes_palette_to_rgb(uint16_t color_idx)
 static void
 render_pixel(r2C02 *ppu)
 {
-	int bg_rendering_enabled = is_bg_rendering_enabled(ppu->ppu_mask);
-	int fg_rendering_enabled = is_fg_rendering_enabled(ppu->ppu_mask);
-
 	int x = ppu->cycle - 1;
 	int y = ppu->scanline;
 
-	uint8_t bg_color = 0;
-	uint8_t fg_color = 0;
-	uint8_t final_color = 0;
-	uint32_t rgb_color = 0;
+	uint8_t bg_pixel_addr = is_bg_rendering_enabled(ppu->ppu_mask) ? get_bg_pixel_addr(ppu) : 0;
+	uint8_t fg_pixel_addr = is_fg_rendering_enabled(ppu->ppu_mask) ? get_fg_pixel_addr(ppu) : 0;
 
-	if (bg_rendering_enabled) {
-		bg_color = render_bg_pixel(ppu);
-	}
+	uint16_t pixel_addr = 0x3F00 + select_priority(bg_pixel_addr, fg_pixel_addr);
+	uint16_t color_idx = vram_data_read(ppu, pixel_addr);
+	uint32_t color = nes_palette_to_rgb(color_idx);
 
-	if (fg_rendering_enabled) {
-		fg_color = render_fg_pixel(ppu);
-	}
-
-	final_color = multiplex_pixels(bg_color, fg_color);
-	uint16_t color_idx = 0x3F00 + final_color;
-	color_idx = vram_data_read(ppu, color_idx);
-
-	rgb_color = nes_palette_to_rgb(color_idx);
-	set_pixel(ppu, x, y, rgb_color);
+	set_pixel(ppu, x, y, color);
 }
 
 static void
 clear_sprites(r2C02 *ppu)
 {
 	int i;
-	for (i = 0; i < OAM2_SIZE; i++) {
-		ppu->oam2[i] = 0;
+
+	for (i = 0; i < OAM2_SIZE_BYTES; i++) {
+		ppu->oam2.bytes[i] = 0xFF;
 	}
 }
 
 static void
 evaluate_sprites(r2C02 *ppu)
 {
-	/* TODO: here we should search OAM in order to find
-	 * sprites that will be on current scanline. We choose
-	 * the first eight.
-	 * If eight sprites were found, it checks (in a wrongly-implemented fashion)
-	 * for further sprites on the scanline to see if the sprite overflow flag
-	 * should be set. Then, using the details for the eight (or fewer) sprites
-	 * chosen, it determines which pixels each has on the scanline and where
-	 * to draw them.
+	uint8_t m = 0, n = 0;
+	uint8_t y = 0;
+
+	int sprite_top = 0;
+	int sprite_bottom = 0;
+
+	ppu->active_sprites = 0;
+
+	for (; ppu->active_sprites < 8 && n < OAM_SIZE_SPRITES; n++) {
+		y = ppu->oam.sprites[n].pos_y;
+
+		sprite_top = y;
+		sprite_bottom = y + get_sprites_height(ppu->ppu_ctrl);
+
+		if (in_range(ppu->scanline, sprite_top, sprite_bottom - 1)) {
+			ppu->oam2.sprites[ppu->active_sprites] = ppu->oam.sprites[n];
+			ppu->active_sprites++;
+		}
+	}
+
+	/* NOTE: here we have to implement NES sprite overflow bug.
+	 * See: https://www.nesdev.org/wiki/PPU_sprite_evaluation#Sprite_overflow_bug
 	 */
+	/* TODO: temporary solution, not accurate */
+	for (; n < OAM_SIZE_SPRITES; n++) {
+		y = ppu->oam.sprites[n].pos_y;
+		
+		if (in_range(ppu->scanline, sprite_top, sprite_bottom - 1)) {
+			set_status_sprite_overflow(&ppu->ppu_status);
+			break;
+		}
+	}
 }
 
 static void
 fetch_sprites(r2C02 *ppu)
 {
+	int sprite_height = get_sprites_height(ppu->ppu_ctrl);
+	uint8_t y_pos;
+	uint8_t tile1, tile2;
+	uint16_t tile_idx;
+	int i;
 
+	sprite current_sprite;
+
+	for (i = 0; i < 8; i++) {
+		if (i < ppu->active_sprites) {
+			current_sprite = ppu->oam2.sprites[i];
+		} else {
+			current_sprite = create_empty_sprite();
+
+			/* NOTE: For the first empty sprite slot, this will consist of sprite #63's
+			 * Y-coordinate followed by 3 $FF bytes; for subsequent empty sprite slots,
+			 * this will be four $FF bytes.
+			 * From: https://www.nesdev.org/wiki/PPU_sprite_evaluation.
+			 */
+			if (i == ppu->active_sprites) {
+				current_sprite.pos_y = ppu->oam.sprites[63].pos_y;
+			}
+		}
+
+		tile_idx = current_sprite.tile_idx;
+		y_pos = ppu->scanline - current_sprite.pos_y;
+		/* TODO: handle vertical flip */
+
+		if (sprite_height == 8) {
+			tile_idx *= 0x10;
+			tile_idx += is_sprite_tile_select_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
+		} else {
+			/*TODO: */
+		}
+
+		tile_idx += y_pos % 0x8;
+		tile1 = vram_data_read(ppu, tile_idx);
+		tile2 = vram_data_read(ppu, tile_idx + 8);
+
+		ppu->fetched_sprites[i].tile_lo = tile1;
+		ppu->fetched_sprites[i].tile_hi = tile2;
+		ppu->fetched_sprites[i].attributes = current_sprite.attributes;
+		ppu->fetched_sprites[i].x = current_sprite.pos_x;
+	}
 }
 
-static uint8_t
+static void
 fetch_attr_table(r2C02 *ppu)
 {
-	uint16_t addr = ppu->vram_reg.curr_addr.whole;
+	address addr = ppu->vram_reg.curr_addr;
 	/* TODO: rewrite! */
-	uint16_t attr_byte_addr = 0x23C0 | (addr & 0x0C00) | ((addr >> 4) & 0x38) | ((addr >> 2) & 0x07);
+	uint16_t attr_byte_addr = 0x23C0 | (addr.whole & 0x0C00) | ((addr.whole >> 4) & 0x38) | ((addr.whole >> 2) & 0x07);
 	uint8_t attr_byte = vram_data_read(ppu, attr_byte_addr);
 
 	uint16_t coarse_x = loopy_get_coarse_x(addr);
 	uint16_t coarse_y = loopy_get_coarse_y(addr);
 	uint8_t shift = (coarse_y & 0x02) << 1 | coarse_x & 0x02;
 
-	return (attr_byte >> shift) & 0x03;
+	ppu->next_tile.attr = (attr_byte >> shift) & 0x03;
 }
 
-static uint16_t
+static void
 update_x_scroll(r2C02 *ppu)
 {
-	uint16_t loopy_reg = ppu->vram_reg.curr_addr.whole;
-	uint16_t coarse_x = loopy_get_coarse_x(loopy_reg);
+	uint16_t coarse_x = loopy_get_coarse_x(ppu->vram_reg.curr_addr);
 
 	if (coarse_x == 31) {
-		loopy_set_coarse_x(&loopy_reg, 0);
-		loopy_toggle_nametable_x(&loopy_reg);
+		loopy_set_coarse_x(&ppu->vram_reg.curr_addr, 0);
+		loopy_toggle_nametable_x(&ppu->vram_reg.curr_addr);
 	} else {
-		loopy_set_coarse_x(&loopy_reg, coarse_x + 1);
+		loopy_set_coarse_x(&ppu->vram_reg.curr_addr, coarse_x + 1);
 	}
-
-	return loopy_reg;
 }
 
-static uint16_t
+static void
 update_y_scroll(r2C02 *ppu)
 {
-	uint16_t loopy_reg = ppu->vram_reg.curr_addr.whole;
-	uint16_t fine_y = loopy_get_fine_y(loopy_reg);
+	uint16_t fine_y = loopy_get_fine_y(ppu->vram_reg.curr_addr);
 	uint16_t coarse_y;
 
 	if (fine_y < 7) {
-		loopy_set_fine_y(&loopy_reg, fine_y + 1);
+		loopy_set_fine_y(&ppu->vram_reg.curr_addr, fine_y + 1);
 	} else {
-		coarse_y = loopy_get_coarse_y(loopy_reg);
-		loopy_set_fine_y(&loopy_reg, 0);
+		coarse_y = loopy_get_coarse_y(ppu->vram_reg.curr_addr);
+		loopy_set_fine_y(&ppu->vram_reg.curr_addr, 0);
 
 		switch (coarse_y) {
 			case 29:
-				loopy_set_coarse_y(&loopy_reg, 0);
-				loopy_toggle_nametable_y(&loopy_reg);
+				loopy_set_coarse_y(&ppu->vram_reg.curr_addr, 0);
+				loopy_toggle_nametable_y(&ppu->vram_reg.curr_addr);
 				break;
 			case 31:
-				loopy_set_coarse_y(&loopy_reg, 0);
+				loopy_set_coarse_y(&ppu->vram_reg.curr_addr, 0);
 				break;
 			default:
-				loopy_set_coarse_y(&loopy_reg, coarse_y + 1);
+				loopy_set_coarse_y(&ppu->vram_reg.curr_addr, coarse_y + 1);
 				break;
 		}
 	}
-
-	return loopy_reg;
 }
 
-static uint8_t
+static void
 fetch_tile_id(r2C02 *ppu)
 {
 	uint16_t addr = 0x2000 | (ppu->vram_reg.curr_addr.whole & 0x0FFF);
-	return vram_data_read(ppu, addr);
+	ppu->next_tile.tile_id = vram_data_read(ppu, addr);
 }
 
-static uint8_t
+static void
 fetch_lo_tile(r2C02 *ppu)
 {
 	uint16_t pattern_table = is_bg_tile_select_mode_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
 	uint16_t addr = pattern_table + ppu->next_tile.tile_id * 0x10;
-	addr += loopy_get_fine_y(ppu->vram_reg.curr_addr.whole);
-	return vram_data_read(ppu, addr);
+
+	addr += loopy_get_fine_y(ppu->vram_reg.curr_addr);
+	ppu->next_tile.tile_lo = vram_data_read(ppu, addr);
 }
 
-static uint8_t
+static void
 fetch_hi_tile(r2C02 *ppu)
 {
-
 	uint16_t pattern_table = is_bg_tile_select_mode_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
 	uint16_t addr = pattern_table + ppu->next_tile.tile_id * 0x10;
-	addr += loopy_get_fine_y(ppu->vram_reg.curr_addr.whole);
-	return vram_data_read(ppu, addr + 8);
+
+	addr += loopy_get_fine_y(ppu->vram_reg.curr_addr);
+	ppu->next_tile.tile_hi = vram_data_read(ppu, addr + 8);
 }
 
 uint8_t
@@ -616,24 +752,23 @@ ppu_tick(r2C02 *ppu)
 			break;
 	}
 
-	/* TODO: rewrite like fetch conveyor */
 	if (rendering_enabled && render_scanline) {
 		if (visible_pixel || in_range(ppu->cycle, 321, 336)) {
 			switch (ppu->cycle % 8) {
 				case 0:
-					ppu->vram_reg.curr_addr.whole = update_x_scroll(ppu);
+					update_x_scroll(ppu);
 					break;
 				case 1:
-					ppu->next_tile.tile_id = fetch_tile_id(ppu);
+					fetch_tile_id(ppu);
 					break;
 				case 3:
-					ppu->next_tile.attr = fetch_attr_table(ppu);
+					fetch_attr_table(ppu);
 					break;
 				case 5:
-					ppu->next_tile.tile_lo = fetch_lo_tile(ppu);
+					fetch_lo_tile(ppu);
 					break;
 				case 7:
-					ppu->next_tile.tile_hi = fetch_hi_tile(ppu);
+					fetch_hi_tile(ppu);
 					break;
 			}
 		}
@@ -647,18 +782,13 @@ ppu_tick(r2C02 *ppu)
 		}
 
 		if (ppu->cycle == 256) {
-			ppu->vram_reg.curr_addr.whole = update_y_scroll(ppu);
+			update_y_scroll(ppu);
 		}
 
 		if (ppu->cycle == 257) {
-			/* TODO: implement update from tmp wrappers:
+			/* Copy X: v: ....F.. ...EDCBA = t: ....F.. ...EDCBA */
 			loopy_upd_from_tmp_coarse_x(&ppu->vram_reg);
 			loopy_upd_from_tmp_nametable_x(&ppu->vram_reg);
-			*/
-
-			/* Copy X: v: ....F.. ...EDCBA = t: ....F.. ...EDCBA */
-			loopy_set_coarse_x(&ppu->vram_reg.curr_addr.whole, loopy_get_coarse_x(ppu->vram_reg.tmp_addr.whole));
-			loopy_set_nametable_x(&ppu->vram_reg.curr_addr.whole, loopy_get_nametable_x(ppu->vram_reg.tmp_addr.whole));
 		}
 	}
 
@@ -676,18 +806,11 @@ ppu_tick(r2C02 *ppu)
 		}
 
 		if (rendering_enabled && in_range(ppu->cycle, 280, 304)) {
-			/* TODO: implement update from tmp wrappers:
 			loopy_upd_from_tmp_coarse_y(&ppu->vram_reg);
 			loopy_upd_from_tmp_fine_y(&ppu->vram_reg);
 			loopy_upd_from_tmp_nametable_y(&ppu->vram_reg);
-			*/
-
-			loopy_set_coarse_y(&ppu->vram_reg.curr_addr.whole, loopy_get_coarse_y(ppu->vram_reg.tmp_addr.whole));
-			loopy_set_fine_y(&ppu->vram_reg.curr_addr.whole, loopy_get_fine_y(ppu->vram_reg.tmp_addr.whole));
-			loopy_set_nametable_y(&ppu->vram_reg.curr_addr.whole, loopy_get_nametable_y(ppu->vram_reg.tmp_addr.whole));
 		}
 	}
-
 }
 
 uint8_t
@@ -698,11 +821,11 @@ ppu_read(r2C02 *ppu, uint16_t addr)
 	switch (addr) {
 		case PPUSTATUS:
 			res = ppu->ppu_status;
-			ppu->ppu_status &= ~PPUSTATUS_VBLANK_ENABLED;
+			unset_status_vblank_enabled(&ppu->ppu_status);
 			ppu->vram_reg.write_flag = 0;
 			return res;
 		case OAMDATA:
-			return ppu->oam[ppu->oam_addr];
+			return ppu->oam.bytes[ppu->oam_addr];
 		case PPUDATA:
 			return vram_data_read(ppu, vram_addr_read(ppu)); /* TODO: move vram_addr_read into vram_data_read */
 	}
@@ -720,8 +843,8 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 			}
 
 			ppu->ppu_ctrl = val;
-			loopy_set_nametable_x(&ppu->vram_reg.tmp_addr.whole, val & 0x1);
-			loopy_set_nametable_y(&ppu->vram_reg.tmp_addr.whole, (val & 0x2) >> 1);
+			loopy_set_nametable_x(&ppu->vram_reg.tmp_addr, val & 0x1);
+			loopy_set_nametable_y(&ppu->vram_reg.tmp_addr, (val & 0x2) >> 1);
 			break;
 		case PPUMASK:
 			ppu->ppu_mask = val;
@@ -730,7 +853,7 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 			ppu->oam_addr = val;
 			break;
 		case OAMDATA:
-			ppu->oam[ppu->oam_addr] = val;
+			ppu->oam.bytes[ppu->oam_addr] = val;
 			ppu->oam_addr++;
 			break;
 		case PPUSCROLL:
@@ -743,7 +866,7 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 			vram_data_write(ppu, vram_addr_read(ppu), val); /* TODO: move vram_addr_read into vram_data_write */
 			break;
 		case OAMDMA:
-			/* TODO: */
+			oam_dma_write(ppu, val);
 			break;
 	}
 

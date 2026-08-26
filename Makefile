@@ -12,11 +12,11 @@ options:
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-fami: bus.o cartrige.o cpu.o gfx.o ines.o mem.o nes.o ppu.o
+fami: bus.o cartrige.o cpu.o gfx.o ines.o nes.o ppu.o
 	$(CC) -o $@ $^ $(LIBS) -fsanitize=address -fsanitize=undefined
 
 test: cpu_test.o
-	$(CC) -o $@ $^ -lcriterion -Wl,-rpath, /usr/lib/libgit2.so
+	$(CC) -o $@ $^ -lcriterion -Wl,-rpath, /usr/lib/libgit2.so.1.7
 
 clean:
 	rm -f fami
