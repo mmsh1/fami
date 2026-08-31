@@ -12,7 +12,7 @@ options:
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-fami: bus.o cartrige.o cpu.o gfx.o ines.o nes.o ppu.o
+fami: bus.o cartrige.o controller.o cpu.o gfx.o ines.o nes.o ppu.o
 	$(CC) -o $@ $^ $(LIBS) -fsanitize=address -fsanitize=undefined
 
 test: cpu_test.o

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "cartrige.h"
+#include "controller.h"
 #include "cpu.h"
 #include "ppu.h"
 
@@ -11,10 +12,11 @@ typedef struct bus {
 	r2A03 *cpu;
 	r2C02 *ppu;
 	uint8_t *ram;
+	controller *controller;
 	cartrige rom; /* TODO: use pointer? */
 } bus;
 
-void bus_init(bus *, r2A03 *, r2C02 *, uint8_t *, cartrige);
+void bus_init(bus *, r2A03 *, r2C02 *, uint8_t *, controller *, cartrige);
 
 void bus_apu_reset(bus *);
 void bus_apu_tick(bus *);

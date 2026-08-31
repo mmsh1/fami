@@ -2,13 +2,15 @@
 #include <stdlib.h> /* exit */
 
 #include "bus.h"
+#include "controller.h"
 
 void
-bus_init(bus *bus, r2A03 *cpu, r2C02 *ppu, uint8_t *ram, cartrige rom)
+bus_init(bus *bus, r2A03 *cpu, r2C02 *ppu, uint8_t *ram, controller *controller, cartrige rom)
 {
 	bus->cpu = cpu;
 	bus->ppu = ppu;
 	bus->ram = ram;
+	bus->controller = controller;
 	bus->rom = rom;
 }
 
@@ -105,10 +107,11 @@ bus_read(bus *b, uint16_t addr)
 	}
 	
 	if (addr == 0x4016) {
-		return 0;
+		return controller_read(b->controller);;
 	}
 
 	if (addr == 0x4017) {
+		/* TODO: controller 2 read */
 		return 0;
 	}
 
@@ -135,6 +138,15 @@ bus_write(bus *b, uint16_t addr, uint8_t val)
 	if (addr == 0x4014) {
 		ppu_write(b->ppu, addr, val);
 	}
+
+	if (addr == 0x4016) {
+		controller_write(b->controller, val);
+	}
+
+	if (addr == 0x4017) {
+		/* TODO: write controller 2 */
+	}
+
 	
 	if (addr >= 0x8000) {
 		fprintf(stderr, "trying to write to cartrige rom space\n"); /* TODO: remove */

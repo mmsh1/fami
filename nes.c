@@ -3,7 +3,9 @@
 #include <stdlib.h>
 
 #include "bus.h"
+#include "controller.h"
 #include "gfx.h"
+
 
 #define RAM_SIZE 0x10000
 
@@ -13,6 +15,7 @@ typedef struct {
 	r2A03 cpu;
 	r2C02 ppu;
 	cartrige rom;
+	controller controller;
 	uint8_t ram[RAM_SIZE];
 } nes;
 
@@ -62,6 +65,8 @@ static void
 nes_runloop(nes *n)
 {
 	while (!nes_should_exit()) {
+		gfx_poll_controller(&n->controller.buttons);
+
 		nes_tick(n);
 		nes_draw(n);
 	}
@@ -70,7 +75,7 @@ nes_runloop(nes *n)
 static void
 nes_init(nes *n)
 {
-	bus_init(&n->bus, &n->cpu, &n->ppu, n->ram, n->rom);
+	bus_init(&n->bus, &n->cpu, &n->ppu, n->ram, &n->controller, n->rom);
 	bus_cpu_reset(&n->bus);
 	bus_ppu_reset(&n->bus);
 	gfx_init(); // TODO: create layer for holding array
