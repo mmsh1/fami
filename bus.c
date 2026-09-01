@@ -57,7 +57,7 @@ bus_cpu_get_total_cycles(bus *b)
 }
 
 void
-bus_cpu_set_stall_cycles(bus *b, int cycles)
+bus_cpu_set_stall_cycles(bus *b, uint64_t cycles)
 {
 	cpu_set_stall_cycles(b->cpu, cycles);
 }

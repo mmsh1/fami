@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 #include "bus.h"
@@ -1556,7 +1557,7 @@ cpu_get_total_cycles(r2A03 *cpu)
 }
 
 void
-cpu_set_stall_cycles(r2A03 *cpu, int cycles)
+cpu_set_stall_cycles(r2A03 *cpu, uint64_t cycles)
 {
 	cpu->stall = cycles;
 }

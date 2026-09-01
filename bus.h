@@ -29,7 +29,7 @@ void bus_cpu_reset(bus *);
 void bus_cpu_tick(bus *);
 void bus_cpu_trigger_nmi(bus *);
 uint64_t bus_cpu_get_total_cycles(bus *);
-void bus_cpu_set_stall_cycles(bus *, int);
+void bus_cpu_set_stall_cycles(bus *, uint64_t);
 
 uint8_t bus_ppu_get_frame_ready_flag(bus *);
 void bus_ppu_unset_frame_ready_flag(bus *);
