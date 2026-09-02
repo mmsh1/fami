@@ -31,7 +31,7 @@ void bus_cartrige_write(struct bus *, uint16_t, uint8_t);
 uint8_t bus_cartrige_get_mirroring(struct bus *);
 void bus_cpu_trigger_nmi(struct bus *);
 uint64_t bus_cpu_get_total_cycles(struct bus *);
-void bus_cpu_set_stall_cycles(struct bus *, int);
+void bus_cpu_set_stall_cycles(struct bus *, uint64_t);
 uint8_t bus_read(struct bus *, uint16_t);
 
 typedef struct {

@@ -1,6 +1,7 @@
 #include "ines.h"
 #include "ppu.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -103,6 +104,9 @@ static inline int is_vblank_enabled(uint8_t status)            { return get_bit(
 static inline int is_rendering_enabled(uint8_t mask)           { return is_fg_rendering_enabled(mask) || is_bg_rendering_enabled(mask); }
 static inline int get_sprites_height(uint8_t ctrl)             { return is_tall_sprites_enabled(ctrl) ? 16 : 8; }
 
+static inline int is_sprite_horizontal_flip_enabled(uint8_t attr) { return get_bit(attr, SPRITE_ATTR_HORIZONTAL_FLIP); }
+static inline int get_sprite_palette(uint8_t attr)                { return attr & SPRITE_ATTR_PALETTE; }
+
 static inline void set_status_sprite_overflow(uint8_t *status) { set_bit(status, PPUSTATUS_SPRITE_OVERFLOW); }
 static inline void set_status_vblank_enabled(uint8_t *status)  { set_bit(status, PPUSTATUS_VBLANK_ENABLED); }
 
@@ -159,6 +163,14 @@ select_priority(uint8_t bg_pixel, uint8_t fg_pixel)
 {
 	return (fg_pixel == 0) ? bg_pixel : fg_pixel;
 	/* TODO: add sprite priority */
+}
+
+static inline uint8_t
+reverse_bits(uint8_t x) {
+	x = (x >> 4) | (x << 4);
+	x = ((x >> 2) & 0x33) | ((x & 0x33) << 2);
+	x = ((x >> 1) & 0x55) | ((x & 0x55) << 1);
+	return x;
 }
 
 static uint8_t
@@ -294,11 +306,9 @@ get_fg_pixel_addr(r2C02 *ppu)
 	uint8_t bit_hi, bit_lo, color;
 	uint8_t sprite_x;
 	uint8_t pixel_in_sprite;
-	uint8_t bit_pos;
-	uint16_t color_idx;
 	uint16_t palette;
-	int i;
 	int x = ppu->cycle - 1;
+	int i;
 
 	if (!is_fg_left_col_enabled(ppu->ppu_mask) && ppu->cycle < 9) {
 		return 0;
@@ -317,16 +327,15 @@ get_fg_pixel_addr(r2C02 *ppu)
 
 		pixel_in_sprite = x - sprite_x;
 
-		bit_pos = 7 - pixel_in_sprite;
-		bit_hi = (ppu->fetched_sprites[i].tile_hi >> bit_pos) & 0x01;
-		bit_lo = (ppu->fetched_sprites[i].tile_lo >> bit_pos) & 0x01;
+		bit_hi = (ppu->fetched_sprites[i].tile_hi >> pixel_in_sprite) & 0x01;
+		bit_lo = (ppu->fetched_sprites[i].tile_lo >> pixel_in_sprite) & 0x01;
 		color = (bit_hi << 1) | bit_lo;
 
 		if (color == 0) {
 			continue;
 		}
 
-		palette = 4 + (ppu->fetched_sprites[i].attributes & SPRITE_ATTR_PALETTE);
+		palette = 4 + get_sprite_palette(ppu->fetched_sprites[i].attributes);
 		return palette * 4 + color;
 	}
 
@@ -553,18 +562,24 @@ fetch_sprites(r2C02 *ppu)
 
 		tile_idx = current_sprite.tile_idx;
 		y_pos = ppu->scanline - current_sprite.pos_y;
-		/* TODO: handle vertical flip */
 
 		if (sprite_height == 8) {
 			tile_idx *= 0x10;
 			tile_idx += is_sprite_tile_select_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
 		} else {
 			/*TODO: */
+			fprintf(stderr, "TALL SPRITES! NOT IMPLEMENTED!\n");
+			exit(1);
 		}
 
 		tile_idx += y_pos % 0x8;
 		tile1 = vram_data_read(ppu, tile_idx);
 		tile2 = vram_data_read(ppu, tile_idx + 8);
+
+		if (!is_sprite_horizontal_flip_enabled(current_sprite.attributes)) {
+			tile1 = reverse_bits(tile1);
+			tile2 = reverse_bits(tile2);
+		}
 
 		ppu->fetched_sprites[i].tile_lo = tile1;
 		ppu->fetched_sprites[i].tile_hi = tile2;
@@ -583,7 +598,7 @@ fetch_attr_table(r2C02 *ppu)
 
 	uint16_t coarse_x = loopy_get_coarse_x(addr);
 	uint16_t coarse_y = loopy_get_coarse_y(addr);
-	uint8_t shift = (coarse_y & 0x02) << 1 | coarse_x & 0x02;
+	uint8_t shift = (coarse_y & 0x02) << 1 | (coarse_x & 0x02);
 
 	ppu->next_tile.attr = (attr_byte >> shift) & 0x03;
 }
