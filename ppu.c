@@ -1,7 +1,6 @@
 #include "ines.h"
 #include "ppu.h"
 
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -101,10 +100,12 @@ static inline int is_fg_left_col_enabled(uint8_t mask)         { return get_bit(
 static inline int is_bg_rendering_enabled(uint8_t mask)        { return get_bit(mask, PPUMASK_BACKGROUND_ENABLE); }
 static inline int is_fg_rendering_enabled(uint8_t mask)        { return get_bit(mask, PPUMASK_SPRITE_ENABLE); }
 static inline int is_vblank_enabled(uint8_t status)            { return get_bit(status, PPUSTATUS_VBLANK_ENABLED); }
+static inline int is_sprite_zero_hit_enabled(uint8_t status)   { return get_bit(status, PPUSTATUS_SPRITE_ZERO_HIT); }
 static inline int is_rendering_enabled(uint8_t mask)           { return is_fg_rendering_enabled(mask) || is_bg_rendering_enabled(mask); }
 static inline int get_sprites_height(uint8_t ctrl)             { return is_tall_sprites_enabled(ctrl) ? 16 : 8; }
 
 static inline int is_sprite_horizontal_flip_enabled(uint8_t attr) { return get_bit(attr, SPRITE_ATTR_HORIZONTAL_FLIP); }
+static inline int is_sprite_vertical_flip_enabled(uint8_t attr)   { return get_bit(attr, SPRITE_ATTR_VERTICAL_FLIP); }
 static inline int get_sprite_palette(uint8_t attr)                { return attr & SPRITE_ATTR_PALETTE; }
 
 static inline void set_status_sprite_overflow(uint8_t *status) { set_bit(status, PPUSTATUS_SPRITE_OVERFLOW); }
@@ -295,7 +296,7 @@ get_bg_pixel_addr(r2C02 *ppu)
 
 	pal_hi = ((ppu->shift.attr_hi & mask) >> shift) & 0x01;
 	pal_lo = ((ppu->shift.attr_lo & mask) >> shift) & 0x01;
-	palette = (pal_hi << 1) | (pal_lo);
+	palette = (pal_hi << 1) | pal_lo;
 
 	return palette * 4 + color;
 }
@@ -533,15 +534,39 @@ evaluate_sprites(r2C02 *ppu)
 	}
 }
 
+static uint16_t
+get_sprite_addr(r2C02 *ppu, sprite sprite)
+{
+	int sprite_height = get_sprites_height(ppu->ppu_ctrl);
+	uint8_t y_pos = ppu->scanline - sprite.pos_y;
+	uint16_t tile_idx = sprite.tile_idx;
+	uint16_t pattern_table;
+
+	if (is_sprite_vertical_flip_enabled(sprite.attributes)) {
+		y_pos = sprite_height - y_pos - 1;
+	}
+
+	if (sprite_height == 8) {
+		pattern_table = is_sprite_tile_select_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
+	} else {
+		pattern_table = (tile_idx & 1) ? 0x1000 : 0;
+		tile_idx &= 0xFE; /* 1111 1110 */
+
+		if (y_pos >= 8) {
+			tile_idx += 1;
+			y_pos -= 8;
+		}
+	}
+
+	return pattern_table + tile_idx * 16 + y_pos;
+}
+
 static void
 fetch_sprites(r2C02 *ppu)
 {
-	int sprite_height = get_sprites_height(ppu->ppu_ctrl);
-	uint8_t y_pos;
-	uint8_t tile1, tile2;
+	uint8_t tile_lo, tile_hi;
 	uint16_t tile_idx;
 	int i;
-
 	sprite current_sprite;
 
 	for (i = 0; i < 8; i++) {
@@ -560,29 +585,17 @@ fetch_sprites(r2C02 *ppu)
 			}
 		}
 
-		tile_idx = current_sprite.tile_idx;
-		y_pos = ppu->scanline - current_sprite.pos_y;
-
-		if (sprite_height == 8) {
-			tile_idx *= 0x10;
-			tile_idx += is_sprite_tile_select_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
-		} else {
-			/*TODO: */
-			fprintf(stderr, "TALL SPRITES! NOT IMPLEMENTED!\n");
-			exit(1);
-		}
-
-		tile_idx += y_pos % 0x8;
-		tile1 = vram_data_read(ppu, tile_idx);
-		tile2 = vram_data_read(ppu, tile_idx + 8);
+		tile_idx = get_sprite_addr(ppu, current_sprite);
+		tile_lo = vram_data_read(ppu, tile_idx);
+		tile_hi = vram_data_read(ppu, tile_idx + 8);
 
 		if (!is_sprite_horizontal_flip_enabled(current_sprite.attributes)) {
-			tile1 = reverse_bits(tile1);
-			tile2 = reverse_bits(tile2);
+			tile_lo = reverse_bits(tile_lo);
+			tile_hi = reverse_bits(tile_hi);
 		}
 
-		ppu->fetched_sprites[i].tile_lo = tile1;
-		ppu->fetched_sprites[i].tile_hi = tile2;
+		ppu->fetched_sprites[i].tile_lo = tile_lo;
+		ppu->fetched_sprites[i].tile_hi = tile_hi;
 		ppu->fetched_sprites[i].attributes = current_sprite.attributes;
 		ppu->fetched_sprites[i].x = current_sprite.pos_x;
 	}
