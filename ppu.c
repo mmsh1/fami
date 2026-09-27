@@ -1,6 +1,7 @@
 #include "ines.h"
 #include "ppu.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -84,7 +85,8 @@ ppu_colors[0x40] = {
 
 static inline uint8_t get_color_idx_in_palette(uint8_t lo, uint8_t hi) { return (lo & 0x1) << 1 | (hi & 0x1); }  /* from 0 to 3 */
 
-static inline int in_range(int num, int lo, int hi) { return (num >= lo) && (num <= hi); }
+static inline int in_range(int num, int lo, int hi)     { return (num >= lo) && (num < hi); }
+static inline int in_range_inc(int num, int lo, int hi) { return (num >= lo) && (num <= hi); }
 
 static inline int get_bit(uint8_t reg, uint8_t mask)     { return reg & mask; }
 static inline void set_bit(uint8_t *reg, uint8_t mask)   { *reg |= mask; }
@@ -174,11 +176,10 @@ reverse_bits(uint8_t x) {
 	return x;
 }
 
-static uint8_t
-nametable_read(r2C02 *ppu, uint16_t addr)
+static uint16_t
+mirror_nametable_addr(r2C02 *ppu, uint16_t addr)
 {
 	mirroring_type mt = bus_cartrige_get_mirroring(ppu->bus);
-
 	switch (mt) {
 		case HORIZONTAL_MIRRORING:
 			addr = ((addr / 2) & 0x400) + (addr % 0x400);
@@ -194,34 +195,25 @@ nametable_read(r2C02 *ppu, uint16_t addr)
 			addr -= 0x2000;
 	}
 
+	return addr;
+}
+
+static uint8_t
+nametable_read(r2C02 *ppu, uint16_t addr)
+{
+	addr = mirror_nametable_addr(ppu, addr);
 	return ppu->vram[addr];
 }
 
 static void
 nametable_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 {
-	mirroring_type mt = bus_cartrige_get_mirroring(ppu->bus);
-
-	switch (mt) {
-		case HORIZONTAL_MIRRORING:
-			addr = ((addr / 2) & 0x400) + (addr % 0x400);
-			break;
-		case VERTICAL_MIRRORING:
-			addr %= 0x800;
-			break;
-		case SINGLE_SCREEN_A:
-		case SINGLE_SCREEN_B:
-		case FOUR_SCREEN:
-		case INVALID_MIRRORING: // TODO:
-		default:
-			addr -= 0x2000;
-	}
-
+	addr = mirror_nametable_addr(ppu, addr);
 	ppu->vram[addr] = val;
 }
 
-static inline uint8_t
-palette_read(uint16_t addr)
+static uint16_t
+palette_index(uint16_t addr)
 {
 	switch (addr) {
 		case 0x3F10:
@@ -230,27 +222,23 @@ palette_read(uint16_t addr)
 		case 0x3F1C:
 			addr -= 0x10;
 	}
-
 	addr -= 0x3F00;
 	addr %= 0x20;
 
+	return addr;
+}
+
+static inline uint8_t
+palette_read(uint16_t addr)
+{
+	addr = palette_index(addr);
 	return ppu_palette[addr];
 }
 
 static inline void
 palette_write(uint16_t addr, uint8_t val)
 {
-	switch (addr) {
-		case 0x3F10:
-		case 0x3F14:
-		case 0x3F18:
-		case 0x3F1C:
-			addr -= 0x10;
-	}
-
-	addr -= 0x3F00;
-	addr %= 0x20;
-
+	addr = palette_index(addr);
 	ppu_palette[addr] = val;
 }
 
@@ -355,7 +343,7 @@ oam_dma_write(r2C02 *ppu, uint8_t idx)
 	bus_cpu_set_stall_cycles(ppu->bus, stall);
 
 	for (i = 0; i < OAM_SIZE_BYTES; i++) {
-		addr = ppu->oam_addr + i;
+		addr = ppu->oam_addr + (uint8_t)i;
 		ppu->oam.bytes[addr] = bus_read(ppu->bus, idx * OAM_SIZE_BYTES + i);
 	}
 }
@@ -435,7 +423,7 @@ vram_data_read(r2C02 *ppu, uint16_t addr)
 
 	fprintf(stderr, "invalid vram_data_read\n");
 	exit(1);
-	/*return 0x0; TODO: assert? */
+	//return 0x0; /* TODO: assert? */
 }
 
 static void
@@ -454,8 +442,9 @@ static inline void
 vram_reg_write(r2C02 *ppu, uint8_t val)
 {
 	if (ppu->vram_reg.write_flag == 0) {
-		ppu->vram_reg.tmp_addr.part.hi = val;
-		ppu->vram_reg.tmp_addr.part.lo = 0;
+		//ppu->vram_reg.tmp_addr.part.hi = val;
+		ppu->vram_reg.tmp_addr.part.hi = val & 0x3F;
+		//ppu->vram_reg.tmp_addr.part.lo = 0;
 		ppu->vram_reg.write_flag = 1;
 	} else {
 		ppu->vram_reg.tmp_addr.part.lo = val;
@@ -514,7 +503,7 @@ evaluate_sprites(r2C02 *ppu)
 		sprite_top = y;
 		sprite_bottom = y + get_sprites_height(ppu->ppu_ctrl);
 
-		if (in_range(ppu->scanline, sprite_top, sprite_bottom - 1)) {
+		if (in_range(ppu->scanline, sprite_top, sprite_bottom)) {
 			ppu->oam2.sprites[ppu->active_sprites] = ppu->oam.sprites[n];
 			ppu->active_sprites++;
 		}
@@ -527,7 +516,7 @@ evaluate_sprites(r2C02 *ppu)
 	for (; n < OAM_SIZE_SPRITES; n++) {
 		y = ppu->oam.sprites[n].pos_y;
 		
-		if (in_range(ppu->scanline, sprite_top, sprite_bottom - 1)) {
+		if (in_range(ppu->scanline, sprite_top, sprite_bottom)) {
 			set_status_sprite_overflow(&ppu->ppu_status);
 			break;
 		}
@@ -578,7 +567,7 @@ fetch_sprites(r2C02 *ppu)
 			/* NOTE: For the first empty sprite slot, this will consist of sprite #63's
 			 * Y-coordinate followed by 3 $FF bytes; for subsequent empty sprite slots,
 			 * this will be four $FF bytes.
-			 * From: https://www.nesdev.org/wiki/PPU_sprite_evaluation.
+			 * See: https://www.nesdev.org/wiki/PPU_sprite_evaluation.
 			 */
 			if (i == ppu->active_sprites) {
 				current_sprite.pos_y = ppu->oam.sprites[63].pos_y;
@@ -663,23 +652,25 @@ fetch_tile_id(r2C02 *ppu)
 	ppu->next_tile.tile_id = vram_data_read(ppu, addr);
 }
 
-static void
-fetch_lo_tile(r2C02 *ppu)
+static uint16_t
+bg_tile_addr(r2C02 *ppu)
 {
 	uint16_t pattern_table = is_bg_tile_select_mode_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
 	uint16_t addr = pattern_table + ppu->next_tile.tile_id * 0x10;
+	return addr + loopy_get_fine_y(ppu->vram_reg.curr_addr);
+}
 
-	addr += loopy_get_fine_y(ppu->vram_reg.curr_addr);
+static void
+fetch_lo_tile(r2C02 *ppu)
+{
+	uint16_t addr = bg_tile_addr(ppu);
 	ppu->next_tile.tile_lo = vram_data_read(ppu, addr);
 }
 
 static void
 fetch_hi_tile(r2C02 *ppu)
 {
-	uint16_t pattern_table = is_bg_tile_select_mode_enabled(ppu->ppu_ctrl) ? 0x1000 : 0;
-	uint16_t addr = pattern_table + ppu->next_tile.tile_id * 0x10;
-
-	addr += loopy_get_fine_y(ppu->vram_reg.curr_addr);
+	uint16_t addr = bg_tile_addr(ppu);
 	ppu->next_tile.tile_hi = vram_data_read(ppu, addr + 8);
 }
 
@@ -699,20 +690,13 @@ void
 ppu_reset(r2C02 *ppu, struct bus *bus)
 {
 	ppu->bus = bus;
-
-	/* TODO: do we need these lines?
-	ppu->frame = 0;
-	ppu->scanline = 0;
-	ppu->cycle = 0;
-	ppu->frame_ready_flag = 0;
-	*/
 }
 
 /* TODO: only for debug */
 static void
 disasm(r2C02 *ppu)
 {
-	fprintf(stderr, "x: %d. y: %d. ", ppu->cycle, ppu->scanline);
+	fprintf(stderr, "total: %zu. x: %d. y: %d. ", ppu->total_cycles, ppu->cycle, ppu->scanline);
 	fprintf(stderr, "ctrl: %02x. mask: %02x, status: %02x, v: %04x, t: %04x, fx: %d\n",
 		ppu->ppu_ctrl,
 		ppu->ppu_mask,
@@ -723,16 +707,10 @@ disasm(r2C02 *ppu)
 	);
 }
 
-void
-ppu_tick(r2C02 *ppu)
+static void
+update_counters(r2C02 *ppu)
 {
-	int visible_scanline, visible_pixel;
-	int enter_vblank, exit_vblank;
-	int prerender_scanline, render_scanline, postrender_scanline;
-	int rendering_enabled;
-
-	//disasm(ppu);
-
+	ppu->total_cycles++; /* TODO: debug only */
 	ppu->cycle++;
 
 	/* TODO: check odd frame? */
@@ -746,21 +724,11 @@ ppu_tick(r2C02 *ppu)
 			ppu->frame++;
 		}
 	}
+}
 
-	/* See: https://www.nesdev.org/wiki/PPU_rendering */
-	visible_scanline = in_range(ppu->scanline, 0, 239);
-	visible_pixel = in_range(ppu->cycle, 1, 256);
-
-	prerender_scanline = ppu->scanline == -1;
-	render_scanline = visible_scanline || prerender_scanline;
-	/* postrender_scanline = ppu->scanline == 240; */
-
-	enter_vblank = ppu->scanline == 241 && ppu->cycle == 1;
-	exit_vblank = ppu->scanline == 261 && ppu->cycle == 1;
-
-	rendering_enabled = is_rendering_enabled(ppu->ppu_mask);
-	//new_pixel_group = ppu->cycle % 8 == 1;
-
+static void
+sprite_pipeline(r2C02 *ppu)
+{
 	/* NOTE: sprite evaluation
 	 * See: https://www.nesdev.org/wiki/PPU_sprite_evaluation
 	 * cycle 1-64:      clear sprites                   (use cycle == 1)
@@ -768,6 +736,7 @@ ppu_tick(r2C02 *ppu)
 	 * cycle 257-320:   fetch sprites                   (use cycle == 257)
 	 * cycle 321-340+0: background render pipeline init (use cycle == 321)
 	 */
+	
 	switch (ppu->cycle) {
 		case 1:
 			clear_sprites(ppu);
@@ -779,44 +748,81 @@ ppu_tick(r2C02 *ppu)
 			fetch_sprites(ppu);
 			break;
 	}
+}
 
-	if (rendering_enabled && render_scanline) {
-		if (visible_pixel || in_range(ppu->cycle, 321, 336)) {
-			switch (ppu->cycle % 8) {
-				case 0:
-					update_x_scroll(ppu);
-					break;
-				case 1:
-					fetch_tile_id(ppu);
-					break;
-				case 3:
-					fetch_attr_table(ppu);
-					break;
-				case 5:
-					fetch_lo_tile(ppu);
-					break;
-				case 7:
-					fetch_hi_tile(ppu);
-					break;
-			}
+static void
+background_pipeline(r2C02 *ppu, int visible_pixel, int prerender_pixel)
+{
+	int in_fetch_range = visible_pixel || prerender_pixel;
+	int in_shift_range = in_range_inc(ppu->cycle, 2, 257) || in_range_inc(ppu->cycle, 322, 337);
+	int new_pixel_group = (ppu->cycle % 8 == 1);
+
+	if (in_fetch_range) {
+		switch (ppu->cycle % 8) {
+			case 0:
+				update_x_scroll(ppu);
+				break;
+			case 1:
+				fetch_tile_id(ppu);
+				break;
+			case 3:
+				fetch_attr_table(ppu);
+				break;
+			case 5:
+				fetch_lo_tile(ppu);
+				break;
+			case 7:
+				fetch_hi_tile(ppu);
+				break;
 		}
+	}
 
-		if (in_range(ppu->cycle, 2, 257) || in_range(ppu->cycle, 322, 337)) {
-			update_shift(ppu);
+	if (in_shift_range) {
+		update_shift(ppu);
 		
-			if (ppu->cycle % 8 == 1) {
-			  load_next_tile(ppu);
+		if (new_pixel_group) {
+		  load_next_tile(ppu);
+		}
+	}
+
+	if (ppu->cycle == 257) {
+		/* Copy X: v: ....F.. ...EDCBA = t: ....F.. ...EDCBA */
+		loopy_upd_from_tmp_coarse_x(&ppu->vram_reg);
+		loopy_upd_from_tmp_nametable_x(&ppu->vram_reg);
+	}
+}
+
+void
+ppu_tick(r2C02 *ppu)
+{
+	int visible_scanline, visible_pixel;
+	int prerender_scanline, prerender_pixel;
+	int enter_vblank, exit_vblank;
+	int rendering_enabled;
+
+	//disasm(ppu);
+	update_counters(ppu);
+
+	/* See: https://www.nesdev.org/wiki/PPU_rendering */
+	visible_scanline = in_range_inc(ppu->scanline, 0, 239);
+	visible_pixel = in_range_inc(ppu->cycle, 1, 256);
+
+	prerender_pixel = in_range_inc(ppu->cycle, 321, 336);
+	prerender_scanline = ppu->scanline == -1;
+	rendering_enabled = is_rendering_enabled(ppu->ppu_mask);
+
+	enter_vblank = ppu->scanline == 241 && ppu->cycle == 1;
+	exit_vblank = prerender_scanline && ppu->cycle == 1;
+
+	if (rendering_enabled) {
+		sprite_pipeline(ppu);
+
+		if (visible_scanline || prerender_scanline) {
+			background_pipeline(ppu, visible_pixel, prerender_pixel);
+
+			if (ppu->cycle == 256) {
+				update_y_scroll(ppu);
 			}
-		}
-
-		if (ppu->cycle == 256) {
-			update_y_scroll(ppu);
-		}
-
-		if (ppu->cycle == 257) {
-			/* Copy X: v: ....F.. ...EDCBA = t: ....F.. ...EDCBA */
-			loopy_upd_from_tmp_coarse_x(&ppu->vram_reg);
-			loopy_upd_from_tmp_nametable_x(&ppu->vram_reg);
 		}
 	}
 
@@ -827,13 +833,13 @@ ppu_tick(r2C02 *ppu)
 	if (enter_vblank) {
 		vblank_start(ppu);
 	}
+	
+	if (exit_vblank) {
+		vblank_end(ppu);
+	}
 
-	if (ppu->scanline == -1) {
-		if (ppu->cycle == 1) {
-			vblank_end(ppu);
-		}
-
-		if (rendering_enabled && in_range(ppu->cycle, 280, 304)) {
+	if (prerender_scanline) {
+		if (rendering_enabled && in_range_inc(ppu->cycle, 280, 304)) {
 			loopy_upd_from_tmp_coarse_y(&ppu->vram_reg);
 			loopy_upd_from_tmp_fine_y(&ppu->vram_reg);
 			loopy_upd_from_tmp_nametable_y(&ppu->vram_reg);

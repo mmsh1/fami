@@ -65,21 +65,12 @@ typedef struct {
 } loopy_reg;
 
 typedef struct {
-	uint8_t ppu_ctrl;   /* PPUCTRL   $2000 */
-	uint8_t ppu_mask;   /* PPUMASK   $2001 */
-	uint8_t ppu_status; /* PPUSTATUS $2002 */
-	uint8_t oam_addr;   /* OAMADDR   $2003 */
-	uint8_t oam_data;   /* OAMDATA   $2004 */
-	uint8_t ppu_scroll; /* PPUSCROLL $2005 */
-	uint8_t ppu_addr;   /* PPUADDR   $2006 */
-	uint8_t ppu_data;   /* PPUDATA   $2007 */
-	uint8_t oam_dma;    /* OAMDMA    $4014 */
+	uint8_t ppu_ctrl;
+	uint8_t ppu_mask;
+	uint8_t ppu_status;
+	uint8_t oam_addr;
 
-	uint8_t read_buffer;
-	uint8_t write_buffer;
 	uint8_t frame_ready_flag;
-	uint8_t suppress_nmi_flag;
-
 	uint8_t vram[VRAM_SIZE];
 
 	union {
@@ -118,6 +109,8 @@ typedef struct {
 	loopy_reg vram_reg;
 
 	struct bus *bus;
+
+	uint64_t total_cycles; /* TODO: remove! */
 } r2C02;
 
 uint8_t ppu_get_frame_ready_flag(r2C02 *);
