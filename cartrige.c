@@ -99,7 +99,8 @@ cartrige_create(const char *path)
 		.prg = prg,
 		.chr = chr,
 		.prg_size = header.prg_rom_size,
-		.chr_size = header.chr_rom_size
+		.chr_size = header.chr_rom_size,
+		.mirroring = mirroring
 	};
 }
 
