@@ -18,6 +18,11 @@ enum {
 };
 
 enum {
+	PALETTE_START = 0x3F00,
+	NAMETABLE_SIZE = 0x1000
+};
+
+enum {
 	PPUCTRL_NMI_ENABLE = 0x80,
 	PPUCTRL_MASTER_SLAVE = 0x40,
 	PPUCTRL_SPRITE_HEIGHT = 0x20,
@@ -137,6 +142,8 @@ static inline void loopy_upd_from_tmp_nametable_y(loopy_reg *reg) { loopy_set_na
 
 static inline void loopy_toggle_nametable_x(address *reg) { reg->whole ^= NAMETABLE_X; }
 static inline void loopy_toggle_nametable_y(address *reg) { reg->whole ^= NAMETABLE_Y; }
+
+static inline int is_palette_addr(uint16_t addr) { return (addr % 0x4000) >= PALETTE_START; }
 
 static inline sprite
 create_empty_sprite()
@@ -436,6 +443,32 @@ vram_data_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 	} else if (addr < 0x4000) {
 		palette_write(addr, val);
 	}
+}
+
+static uint8_t
+ppustatus_read(r2C02 *ppu)
+{
+	uint8_t res = ppu->ppu_status;
+	unset_status_vblank_enabled(&ppu->ppu_status);
+	ppu->vram_reg.write_flag = 0;
+	return res;
+}
+
+static uint8_t
+ppudata_read(r2C02 *ppu)
+{
+	uint16_t addr = ppu->vram_reg.curr_addr.whole;
+	uint8_t val = ppu->read_buffer;
+
+	vram_addr_increment(ppu);
+
+	if (!is_palette_addr(addr)) {
+		ppu->read_buffer = vram_data_read(ppu, addr);
+		return val;
+	}
+
+	ppu->read_buffer = vram_data_read(ppu, addr - NAMETABLE_SIZE);
+	return vram_data_read(ppu, addr);
 }
 
 static inline void
@@ -850,18 +883,13 @@ ppu_tick(r2C02 *ppu)
 uint8_t
 ppu_read(r2C02 *ppu, uint16_t addr)
 {
-	uint8_t res = 0;
-
 	switch (addr) {
 		case PPUSTATUS:
-			res = ppu->ppu_status;
-			unset_status_vblank_enabled(&ppu->ppu_status);
-			ppu->vram_reg.write_flag = 0;
-			return res;
+			return ppustatus_read(ppu);
 		case OAMDATA:
 			return ppu->oam.bytes[ppu->oam_addr];
 		case PPUDATA:
-			return vram_data_read(ppu, vram_addr_read(ppu)); /* TODO: move vram_addr_read into vram_data_read */
+			return ppudata_read(ppu);
 	}
 
 	return 0; /* TODO: handle addr >= VRAM_SIZE ? */

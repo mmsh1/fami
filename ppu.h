@@ -71,6 +71,7 @@ typedef struct {
 	uint8_t oam_addr;
 
 	uint8_t frame_ready_flag;
+	uint8_t read_buffer;
 	uint8_t vram[VRAM_SIZE];
 
 	union {
