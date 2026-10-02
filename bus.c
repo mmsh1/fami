@@ -126,8 +126,8 @@ void
 bus_write(bus *b, uint16_t addr, uint8_t val)
 {
 	// TODO: define addresses!
-	if (addr < 0x1FFF) {
-		b->ram[addr] = val; /* TODO: add check */
+	if (addr < 0x2000) {
+		b->ram[addr % 0x800] = val; /* TODO: add check */
 		return;
 	}
 
