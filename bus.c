@@ -131,7 +131,8 @@ bus_write(bus *b, uint16_t addr, uint8_t val)
 		return;
 	}
 
-	if (addr >= 0x2000 && addr <= 0x3FFF) {
+	if (addr < 0x4000) {
+		addr = 0x2000 + addr % 8; // TODO: create func for composing addr?
 		ppu_write(b->ppu, addr, val);
 	}
 
