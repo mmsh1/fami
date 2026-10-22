@@ -1225,25 +1225,25 @@ OP_TYA(r2A03 *cpu)
 static void
 OP_ALR(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
 OP_ANE(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
 OP_ARR(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
 OP_ANC(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
@@ -1263,7 +1263,10 @@ OP_ISC(r2A03 *cpu)
 static void
 OP_LAS(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	cpu->SP &= get8(cpu);
+	cpu->A = cpu->SP;
+	cpu->X = cpu->SP;
+	upd_zn(cpu, cpu->A);
 }
 
 static void
@@ -1277,7 +1280,7 @@ OP_LAX(r2A03 *cpu)
 static void
 OP_LXA(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
