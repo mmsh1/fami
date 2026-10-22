@@ -62,9 +62,6 @@ enum {
 	SPRITE_ATTR_PALETTE = 0x03          /* 0000 0011 */
 };
 
-static uint8_t
-ppu_palette[0x20] = {0};
-
 static uint32_t
 ppu_colors[0x40] = {
 	0x666666FF, 0x002A88FF, 0x1412A7FF, 0x3B00A4FF,
@@ -88,8 +85,6 @@ ppu_colors[0x40] = {
 	0xB5EBF2FF, 0xB8B8B8FF, 0x000000FF, 0x000000FF
 };
 
-static inline uint8_t get_color_idx_in_palette(uint8_t lo, uint8_t hi) { return (lo & 0x1) << 1 | (hi & 0x1); }  /* from 0 to 3 */
-
 static inline int in_range(int num, int lo, int hi)     { return (num >= lo) && (num < hi); }
 static inline int in_range_inc(int num, int lo, int hi) { return (num >= lo) && (num <= hi); }
 
@@ -106,6 +101,7 @@ static inline int is_bg_left_col_enabled(uint8_t mask)         { return get_bit(
 static inline int is_fg_left_col_enabled(uint8_t mask)         { return get_bit(mask, PPUMASK_SPRITE_LEFT_COL_ENABLE); }
 static inline int is_bg_rendering_enabled(uint8_t mask)        { return get_bit(mask, PPUMASK_BACKGROUND_ENABLE); }
 static inline int is_fg_rendering_enabled(uint8_t mask)        { return get_bit(mask, PPUMASK_SPRITE_ENABLE); }
+static inline int is_greyscale_enabled(uint8_t mask)           { return get_bit(mask, PPUMASK_GREYSCALE); }
 static inline int is_vblank_enabled(uint8_t status)            { return get_bit(status, PPUSTATUS_VBLANK_ENABLED); }
 static inline int is_sprite_zero_hit_enabled(uint8_t status)   { return get_bit(status, PPUSTATUS_SPRITE_ZERO_HIT); }
 static inline int is_rendering_enabled(uint8_t mask)           { return is_fg_rendering_enabled(mask) || is_bg_rendering_enabled(mask); }
@@ -139,6 +135,9 @@ static inline void loopy_upd_from_tmp_coarse_y(loopy_reg *reg)    { loopy_set_co
 static inline void loopy_upd_from_tmp_fine_y(loopy_reg *reg)      { loopy_set_fine_y(&reg->curr_addr, loopy_get_fine_y(reg->tmp_addr)); }
 static inline void loopy_upd_from_tmp_nametable_x(loopy_reg *reg) { loopy_set_nametable_x(&reg->curr_addr, loopy_get_nametable_x(reg->tmp_addr)); }
 static inline void loopy_upd_from_tmp_nametable_y(loopy_reg *reg) { loopy_set_nametable_y(&reg->curr_addr, loopy_get_nametable_y(reg->tmp_addr)); }
+
+static inline void loopy_set_write_flag(loopy_reg *reg)   { reg->write_flag = 1; }
+static inline void loopy_unset_write_flag(loopy_reg *reg) { reg->write_flag = 0; }
 
 static inline void loopy_toggle_nametable_x(address *reg) { reg->whole ^= NAMETABLE_X; }
 static inline void loopy_toggle_nametable_y(address *reg) { reg->whole ^= NAMETABLE_Y; }
@@ -219,7 +218,7 @@ nametable_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 	ppu->vram[addr] = val;
 }
 
-static uint16_t
+static inline uint16_t
 palette_index(uint16_t addr)
 {
 	switch (addr) {
@@ -235,18 +234,23 @@ palette_index(uint16_t addr)
 	return addr;
 }
 
-static inline uint8_t
-palette_read(uint16_t addr)
+static uint8_t
+palette_read(r2C02 *ppu, uint16_t addr)
 {
-	addr = palette_index(addr);
-	return ppu_palette[addr];
+	uint8_t color = ppu->palette[palette_index(addr)] & 0x3F; /* TODO: */
+
+	if (is_greyscale_enabled(ppu->ppu_mask)) {
+		color &= 0x30;
+	}
+
+	return color | (ppu->io_bus & 0xC0);
+
 }
 
-static inline void
-palette_write(uint16_t addr, uint8_t val)
+static void
+palette_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 {
-	addr = palette_index(addr);
-	ppu_palette[addr] = val;
+	ppu->palette[palette_index(addr)] = val & 0x3F; /* TODO: ? */
 }
 
 static inline void
@@ -368,7 +372,7 @@ scroll_reg_write(r2C02 *ppu, uint8_t val)
 		*/
 		loopy_set_coarse_x(&ppu->vram_reg.tmp_addr, val >> 3);
 		ppu->vram_reg.fine_x_scroll = val & 0x7;
-		ppu->vram_reg.write_flag = 1;
+		loopy_set_write_flag(&ppu->vram_reg);
 	} else {
 		/*
 			NOTE:
@@ -377,7 +381,7 @@ scroll_reg_write(r2C02 *ppu, uint8_t val)
 		*/
 		loopy_set_fine_y(&ppu->vram_reg.tmp_addr, val & 0x7);
 		loopy_set_coarse_y(&ppu->vram_reg.tmp_addr, val >> 3);
-		ppu->vram_reg.write_flag = 0;
+		loopy_unset_write_flag(&ppu->vram_reg);
 	}
 }
 
@@ -425,7 +429,7 @@ vram_data_read(r2C02 *ppu, uint16_t addr)
 	}
 
 	if (addr < 0x4000) {
-		return palette_read(addr);
+		return palette_read(ppu, addr);
 	}
 
 	fprintf(stderr, "invalid vram_data_read\n");
@@ -441,16 +445,20 @@ vram_data_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 	} else if (addr < 0x3F00) {
 		nametable_write(ppu, addr, val);
 	} else if (addr < 0x4000) {
-		palette_write(addr, val);
+		palette_write(ppu, addr, val);
 	}
 }
 
 static uint8_t
 ppustatus_read(r2C02 *ppu)
 {
-	uint8_t res = ppu->ppu_status;
+	/* 0x1F = 0001 1111 */
+	/* 0xE0 = 1110 0000 */
+	uint8_t res = (ppu->io_bus & 0x1F) | (ppu->ppu_status & 0xE0);
+	ppu->io_bus = (ppu->io_bus & 0x1F) | (ppu->ppu_status & 0xE0);
+
 	unset_status_vblank_enabled(&ppu->ppu_status);
-	ppu->vram_reg.write_flag = 0;
+	loopy_unset_write_flag(&ppu->vram_reg);
 	return res;
 }
 
@@ -475,15 +483,13 @@ static inline void
 vram_reg_write(r2C02 *ppu, uint8_t val)
 {
 	if (ppu->vram_reg.write_flag == 0) {
-		//ppu->vram_reg.tmp_addr.part.hi = val;
 		ppu->vram_reg.tmp_addr.part.hi = val & 0x3F;
-		//ppu->vram_reg.tmp_addr.part.lo = 0;
-		ppu->vram_reg.write_flag = 1;
+		loopy_set_write_flag(&ppu->vram_reg);
 	} else {
 		ppu->vram_reg.tmp_addr.part.lo = val;
 		ppu->vram_reg.curr_addr = ppu->vram_reg.tmp_addr;
 		ppu->vram_reg.tmp_addr.whole = 0;
-		ppu->vram_reg.write_flag = 0;
+		loopy_unset_write_flag(&ppu->vram_reg);
 	}
 }
 
@@ -869,6 +875,9 @@ ppu_tick(r2C02 *ppu)
 	
 	if (exit_vblank) {
 		vblank_end(ppu);
+		if (rendering_enabled) {
+			ppu->ppu_status &= ~(PPUSTATUS_SPRITE_OVERFLOW | PPUSTATUS_SPRITE_ZERO_HIT);
+		}
 	}
 
 	if (prerender_scanline) {
@@ -892,12 +901,17 @@ ppu_read(r2C02 *ppu, uint16_t addr)
 			return ppudata_read(ppu);
 	}
 
-	return 0; /* TODO: handle addr >= VRAM_SIZE ? */
+	return ppu->io_bus;
+	//return 0; /* TODO: handle addr >= VRAM_SIZE ? */
 }
 
 void
 ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 {
+	if (addr != OAMDMA) {
+		ppu->io_bus = val;
+	}
+
 	switch (addr) {
 		case PPUCTRL:
 			if (!is_nmi_enabled(ppu->ppu_ctrl) && is_vblank_enabled(ppu->ppu_status)) {

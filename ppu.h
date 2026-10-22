@@ -10,9 +10,6 @@ enum {
 enum {
 	OAM_SIZE_BYTES = 256,
 	OAM2_SIZE_BYTES = 32,
-};
-
-enum {
 	OAM_SIZE_SPRITES = OAM_SIZE_BYTES / 4,
 	OAM2_SIZE_SPRITES = OAM2_SIZE_BYTES / 4
 };
@@ -73,6 +70,7 @@ typedef struct {
 	uint8_t frame_ready_flag;
 	uint8_t read_buffer;
 	uint8_t vram[VRAM_SIZE];
+	uint8_t io_bus;
 
 	union {
 		sprite sprites[OAM_SIZE_SPRITES];
@@ -91,6 +89,7 @@ typedef struct {
 	int frame;
 	int active_sprites;
 
+	uint8_t palette[0x20];
 	uint32_t frame_buf[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 	struct {

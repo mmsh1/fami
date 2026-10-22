@@ -39,8 +39,9 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
-static uint8_t is_acc_mode(r2A03 *);
-static void disable_acc_mode(r2A03 *);
+static inline void disable_acc_mode(r2A03 *);
+static inline int is_acc_mode(r2A03 *);
+static inline int has_memory_operand(addr_mode);
 
 static void disassemble(r2A03 *);
 
@@ -59,7 +60,6 @@ static uint16_t read16(r2A03 *);
 static uint8_t getflag(r2A03 *, uint8_t);
 static uint8_t get_c(r2A03 *);
 static uint8_t get_z(r2A03 *);
-/* static uint8_t get_i(r2A03 *); */
 static uint8_t get_v(r2A03 *);
 static uint8_t get_n(r2A03 *);
 
@@ -281,7 +281,7 @@ optable[0xFF + 1] = {
 	{ .idx = 0x58, .name = "CLI", .func = OP_CLI, .cycles = 2, .mode = ADDR_IMP },
 	{ .idx = 0x59, .name = "EOR", .func = OP_EOR, .cycles = 4, .mode = ADDR_IAY },
 	{ .idx = 0x5A, .name = "NOP", .func = OP_NOP, .cycles = 2, .mode = ADDR_IMP },
-	{ .idx = 0x5B, .name = "SRE", .func = OP_SRE, .cycles = 7, .mode = ADDR_IAX },
+	{ .idx = 0x5B, .name = "SRE", .func = OP_SRE, .cycles = 7, .mode = ADDR_IAY },
 	{ .idx = 0x5C, .name = "NOP", .func = OP_NOP, .cycles = 4, .mode = ADDR_IAX },
 	{ .idx = 0x5D, .name = "EOR", .func = OP_EOR, .cycles = 4, .mode = ADDR_IAX },
 	{ .idx = 0x5E, .name = "LSR", .func = OP_LSR, .cycles = 7, .mode = ADDR_IAX },
@@ -458,29 +458,19 @@ optable[0xFF + 1] = {
 	{ .idx = 0xFF, .name = "ISC", .func = OP_ISC, .cycles = 7, .mode = ADDR_IAX }
 };
 
-/*
-static void
-write_acc(r2A03 *cpu, uint8_t data)
-{
-	cpu->A = data;
-}
-*/
-
-/* 
-static uint8_t
-get_acc(r2A03 *cpu)
-{
-	return cpu->A;
-}
-*/
-
-static uint8_t
+static inline int
 is_acc_mode(r2A03 *cpu)
 {
 	return cpu->acc_mode;
 }
 
-static void
+static inline int
+has_memory_operand(addr_mode mode)
+{
+	return mode != ADDR_IMP && mode != ADDR_IMM;
+}
+
+static inline void
 disable_acc_mode(r2A03 *cpu)
 {
 	cpu->acc_mode = 0;
@@ -539,12 +529,6 @@ read8(r2A03 *cpu)
 	return get8_addr(cpu, cpu->PC++);
 }
 
-// static uint8_t
-// read8_indirect(r2A03 *cpu, uint16_t location)
-// {
-// 	return get8_addr(cpu, location);
-// }
-
 static uint8_t
 pop8(r2A03 *cpu)
 {
@@ -569,14 +553,6 @@ read16(r2A03 *cpu)
 	return (hi << 8) | lo;
 }
 
-// static uint16_t
-// read16_indirect(r2A03 *cpu, uint16_t addr)
-// {
-// 	uint8_t lo = read8_indirect(cpu, addr);
-// 	uint8_t hi = read8_indirect(cpu, addr + 1);
-// 	return (hi << 8) | lo;
-// }
-
 static uint8_t
 getflag(r2A03 *cpu, uint8_t mask)
 {
@@ -594,22 +570,6 @@ get_n(r2A03 *cpu)
 {
 	return getflag(cpu, MASK_NEGATIVE);
 }
-
-/*
-static uint8_t
-get_i(r2A03 *cpu)
-{
-	return getflag(cpu, MASK_INTERRUPT_DISABLE);
-}
-*/
-
-/*
-static uint8_t
-get_b(r2A03 *cpu)
-{
-	return getflag(cpu, MASK_BREAK);
-}
-*/
 
 static uint8_t
 get_v(r2A03 *cpu)
@@ -641,14 +601,6 @@ set_c(r2A03 *cpu)
 	setflag(cpu, MASK_CARRY);
 }
 
-/*
-static void
-set_z(r2A03 *cpu)
-{
-	setflag(cpu, MASK_ZERO);
-}
-*/
-
 static void
 set_i(r2A03 *cpu)
 {
@@ -667,35 +619,11 @@ set_b(r2A03 *cpu)
 	setflag(cpu, MASK_BREAK);
 }
 
-/* 
-static void
-set_v(r2A03 *cpu)
-{
-	setflag(cpu, MASK_OVERFLOW);
-}
-*/
-
-/*
-static void
-set_n(r2A03 *cpu)
-{
-	setflag(cpu, MASK_NEGATIVE);
-}
-*/
-
 static void
 unset_c(r2A03 *cpu)
 {
 	unsetflag(cpu, MASK_CARRY);
 }
-
-/*
-static void
-unset_z(r2A03 *cpu)
-{
-	unsetflag(cpu, MASK_ZERO);
-}
-*/
 
 static void
 unset_i(r2A03 *cpu)
@@ -714,14 +642,6 @@ unset_v(r2A03 *cpu)
 {
 	unsetflag(cpu, MASK_OVERFLOW);
 }
-
-/*
-static void
-unset_n(r2A03 *cpu)
-{
-	unsetflag(cpu, MASK_NEGATIVE);
-}
-*/
 
 static void
 upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
@@ -805,7 +725,7 @@ static void
 handle_irq(r2A03 *cpu)
 {
 	push16(cpu, cpu->PC);
-	push8(cpu, cpu->P);
+	push8(cpu, cpu->P | MASK_UNUSED);
 	cpu->stall += 7;
 	cpu->PC = get16_addr(cpu, VECTOR_IRQ);
 }
@@ -814,7 +734,7 @@ static void
 handle_nmi(r2A03 *cpu)
 {
 	push16(cpu, cpu->PC);
-	push8(cpu, cpu->P);
+	push8(cpu, cpu->P | MASK_UNUSED);
 	cpu->stall += 7;
 	cpu->PC = get16_addr(cpu, VECTOR_NMI);
 }
@@ -1021,9 +941,8 @@ OP_BPL(r2A03 *cpu)
 static void
 OP_BRK(r2A03 *cpu)
 {
-	push16(cpu, cpu->PC);
-	set_b(cpu);
-	push8(cpu, cpu->P);
+	push16(cpu, cpu->PC + 1);
+	push8(cpu, cpu->P | MASK_BREAK | MASK_UNUSED);
 	cpu->PC = get16_addr(cpu, VECTOR_IRQ);
 }
 
@@ -1204,9 +1123,12 @@ OP_NOP(r2A03 *cpu)
 	/*
 	 * The NOP instruction causes no changes to the processor
 	 * other than the normal incrementing of the program counter
-	 * to the next instruction.
+	 * to the next instruction. However, a NOP with a memory
+	 * operand must perform a dummy read of that operand
 	 */
-	(void)cpu;
+	if (has_memory_operand(optable[cpu->opcode].mode)) {
+		(void)get8(cpu);
+	}
 }
 
 static void
@@ -1225,7 +1147,7 @@ OP_PHA(r2A03 *cpu)
 static void
 OP_PHP(r2A03 *cpu)
 {
-	push8(cpu, cpu->P);
+	push8(cpu, cpu->P | MASK_BREAK | MASK_UNUSED);
 }
 
 static void
