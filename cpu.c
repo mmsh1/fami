@@ -25,8 +25,6 @@ enum {
 	VECTOR_IRQ = 0xFFFE
 };
 
-enum { TCPF = 29781 }; /* total cycles per frame */
-
 typedef void (*opcode_func)(r2A03 *);
 typedef void (*addr_mode)(r2A03 *);
 
@@ -38,6 +36,31 @@ typedef struct {
 	uint8_t cycles;
 	addr_mode mode;
 } instruction;
+
+static inline uint8_t getflag(r2A03 *, uint8_t);
+static inline uint8_t get_c(r2A03 *);
+static inline uint8_t get_z(r2A03 *);
+static inline uint8_t get_v(r2A03 *);
+static inline uint8_t get_n(r2A03 *);
+
+static inline void setflag(r2A03 *, uint8_t);
+static inline void set_c(r2A03 *);
+static inline void set_i(r2A03 *);
+static inline void set_d(r2A03 *);
+static inline void set_b(r2A03 *);
+
+static inline void unsetflag(r2A03 *, uint8_t);
+static inline void unset_b(r2A03 *);
+static inline void unset_c(r2A03 *);
+static inline void unset_d(r2A03 *);
+static inline void unset_v(r2A03 *);
+
+static inline void upd_flag(r2A03 *, uint8_t, uint8_t);
+static inline void upd_c(r2A03 *, uint8_t);
+static inline void upd_z(r2A03 *, uint8_t);
+static inline void upd_v(r2A03 *, uint8_t);
+static inline void upd_n(r2A03 *, uint8_t);
+static inline void upd_zn(r2A03 *, uint8_t);
 
 static inline void disable_acc_mode(r2A03 *);
 static inline int is_acc_mode(r2A03 *);
@@ -57,32 +80,8 @@ static uint16_t get16_addr(r2A03 *, uint16_t);
 static uint16_t pop16(r2A03 *);
 static uint16_t read16(r2A03 *);
 
-static uint8_t getflag(r2A03 *, uint8_t);
-static uint8_t get_c(r2A03 *);
-static uint8_t get_z(r2A03 *);
-static uint8_t get_v(r2A03 *);
-static uint8_t get_n(r2A03 *);
-
-static void setflag(r2A03 *, uint8_t);
-static void set_c(r2A03 *);
-static void set_i(r2A03 *);
-static void set_d(r2A03 *);
-static void set_b(r2A03 *);
-
-static void unsetflag(r2A03 *, uint8_t);
-static void unset_c(r2A03 *);
-static void unset_d(r2A03 *);
-static void unset_v(r2A03 *);
-
-static void upd_flag(r2A03 *, uint8_t, uint8_t);
-static void upd_c(r2A03 *, uint8_t);
-static void upd_z(r2A03 *, uint8_t);
-static void upd_v(r2A03 *, uint8_t);
-static void upd_n(r2A03 *, uint8_t);
-static void upd_zn(r2A03 *, uint8_t);
-
-static uint8_t overflowed_sum(uint8_t, uint8_t, uint8_t);
-static uint8_t overflowed_sub(uint8_t, uint8_t, uint8_t);
+static inline uint8_t overflowed_sum(uint8_t, uint8_t, uint8_t);
+static inline uint8_t overflowed_sub(uint8_t, uint8_t, uint8_t);
 
 static void poll_interrupts(r2A03 *);
 static void handle_irq(r2A03 *);
@@ -458,6 +457,47 @@ optable[0xFF + 1] = {
 	{ .idx = 0xFF, .name = "ISC", .func = OP_ISC, .cycles = 7, .mode = ADDR_IAX }
 };
 
+static inline uint8_t getflag(r2A03 *cpu, uint8_t mask) { return cpu->P & mask; }
+static inline uint8_t get_c(r2A03 *cpu)                 { return getflag(cpu, MASK_CARRY); }
+static inline uint8_t get_n(r2A03 *cpu)                 { return getflag(cpu, MASK_NEGATIVE); }
+static inline uint8_t get_v(r2A03 *cpu)                 { return getflag(cpu, MASK_OVERFLOW); }
+static inline uint8_t get_z(r2A03 *cpu)                 { return getflag(cpu, MASK_ZERO); }
+
+static inline void setflag(r2A03 *cpu, uint8_t mask) { cpu->P |= mask; }
+static inline void set_b(r2A03 *cpu)                 { setflag(cpu, MASK_BREAK); }
+static inline void set_c(r2A03 *cpu)                 { setflag(cpu, MASK_CARRY); }
+static inline void set_d(r2A03 *cpu)                 { setflag(cpu, MASK_DECIMAL); }
+static inline void set_i(r2A03 *cpu)                 { setflag(cpu, MASK_INTERRUPT_DISABLE); }
+
+static inline void unsetflag(r2A03 *cpu, uint8_t mask) { cpu->P &= ~mask; }
+static inline void unset_b(r2A03 *cpu)                 { unsetflag(cpu, MASK_BREAK); }
+static inline void unset_c(r2A03 *cpu)                 { unsetflag(cpu, MASK_CARRY); }
+static inline void unset_d(r2A03 *cpu)                 { unsetflag(cpu, MASK_DECIMAL); }
+static inline void unset_i(r2A03 *cpu)                 { unsetflag(cpu, MASK_INTERRUPT_DISABLE); }
+static inline void unset_v(r2A03 *cpu)                 { unsetflag(cpu, MASK_OVERFLOW); }
+
+static inline void
+upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
+{
+	if (val) {
+		setflag(cpu, mask);
+	} else {
+		unsetflag(cpu, mask);
+	}
+}
+
+static inline void upd_c(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_CARRY, val); }
+static inline void upd_z(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_ZERO, val); }
+static inline void upd_v(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_OVERFLOW, val); }
+static inline void upd_n(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_NEGATIVE, val); }
+
+static inline void
+upd_zn(r2A03 *cpu, uint8_t val)
+{
+	upd_z(cpu, val == 0);
+	upd_n(cpu, val & MASK_NEGATIVE); /* check if bit 7 of val is set */
+}
+
 static inline int
 is_acc_mode(r2A03 *cpu)
 {
@@ -553,138 +593,7 @@ read16(r2A03 *cpu)
 	return (hi << 8) | lo;
 }
 
-static uint8_t
-getflag(r2A03 *cpu, uint8_t mask)
-{
-	return cpu->P & mask;
-}
-
-static uint8_t
-get_c(r2A03 *cpu)
-{
-	return getflag(cpu, MASK_CARRY);
-}
-
-static uint8_t
-get_n(r2A03 *cpu)
-{
-	return getflag(cpu, MASK_NEGATIVE);
-}
-
-static uint8_t
-get_v(r2A03 *cpu)
-{
-	return getflag(cpu, MASK_OVERFLOW);
-}
-
-static uint8_t
-get_z(r2A03 *cpu)
-{
-	return getflag(cpu, MASK_ZERO);
-}
-
-static void
-setflag(r2A03 *cpu, uint8_t mask)
-{
-	cpu->P |= mask;
-}
-
-static void
-unsetflag(r2A03 *cpu, uint8_t mask)
-{
-	cpu->P &= ~mask;
-}
-
-static void
-set_c(r2A03 *cpu)
-{
-	setflag(cpu, MASK_CARRY);
-}
-
-static void
-set_i(r2A03 *cpu)
-{
-	setflag(cpu, MASK_INTERRUPT_DISABLE);
-}
-
-static void
-set_d(r2A03 *cpu)
-{
-	setflag(cpu, MASK_DECIMAL);
-}
-
-static void
-set_b(r2A03 *cpu)
-{
-	setflag(cpu, MASK_BREAK);
-}
-
-static void
-unset_c(r2A03 *cpu)
-{
-	unsetflag(cpu, MASK_CARRY);
-}
-
-static void
-unset_i(r2A03 *cpu)
-{
-	unsetflag(cpu, MASK_INTERRUPT_DISABLE);
-}
-
-static void
-unset_d(r2A03 *cpu)
-{
-	unsetflag(cpu, MASK_DECIMAL);
-}
-
-static void
-unset_v(r2A03 *cpu)
-{
-	unsetflag(cpu, MASK_OVERFLOW);
-}
-
-static void
-upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
-{
-	if (val) {
-		setflag(cpu, mask);
-	} else {
-		unsetflag(cpu, mask);
-	}
-}
-
-static void
-upd_c(r2A03 *cpu, uint8_t val)
-{
-	upd_flag(cpu, MASK_CARRY, val);
-}
-
-static void
-upd_z(r2A03 *cpu, uint8_t val)
-{
-	upd_flag(cpu, MASK_ZERO, val);
-}
-
-static void
-upd_v(r2A03 *cpu, uint8_t val)
-{
-	upd_flag(cpu, MASK_OVERFLOW, val);
-}
-
-static void
-upd_n(r2A03 *cpu, uint8_t val)
-{
-	upd_flag(cpu, MASK_NEGATIVE, val);
-}
-
-static void
-upd_zn(r2A03 *cpu, uint8_t val)
-{
-	upd_z(cpu, val == 0);
-	upd_n(cpu, val & MASK_NEGATIVE); /* check if bit 7 of val is set */
-}
-
-static uint8_t
+static inline uint8_t
 overflowed_sum(uint8_t a, uint8_t b, uint8_t c)
 {
 	/*
@@ -694,7 +603,7 @@ overflowed_sum(uint8_t a, uint8_t b, uint8_t c)
 	return ((a ^ b) & 0x80) == 0 && ((a ^ c) & 0x80) != 0;
 }
 
-static uint8_t
+static inline uint8_t
 overflowed_sub(uint8_t a, uint8_t b, uint8_t c)
 {
 	/*
@@ -867,13 +776,15 @@ OP_AND(r2A03 *cpu)
 static void
 OP_ASL(r2A03 *cpu)
 {
+	uint8_t val;
+
 	if (is_acc_mode(cpu)) {
 		upd_c(cpu, cpu->A & 0x80);
 		cpu->A <<= 1;
 		upd_zn(cpu, cpu->A);
 		disable_acc_mode(cpu);
 	} else {
-		uint8_t val = get8(cpu);
+		val = get8(cpu);
 		upd_c(cpu, val & 0x80);
 		val <<= 1;
 		write8(cpu, val);
@@ -1103,13 +1014,15 @@ OP_LDY(r2A03 *cpu)
 static void
 OP_LSR(r2A03 *cpu)
 {
+	uint8_t val;
+
 	if (is_acc_mode(cpu)) {
 		upd_c(cpu, cpu->A & MASK_CARRY);
 		cpu->A >>= 1;
 		upd_zn(cpu, cpu->A);
 		disable_acc_mode(cpu);
 	} else {
-		uint8_t val = get8(cpu);
+		val = get8(cpu);
 		upd_c(cpu, val & MASK_CARRY);
 		val >>= 1;
 		write8(cpu, val);
@@ -1161,20 +1074,22 @@ static void
 OP_PLP(r2A03 *cpu)
 {
 	cpu->P = pop8(cpu);
-	unsetflag(cpu, MASK_BREAK); // TODO: ?
+	unset_b(cpu);
 }
 
 static void
 OP_ROL(r2A03 *cpu)
 {
 	uint8_t carry = get_c(cpu);
+	uint8_t val;
+
 	if (is_acc_mode(cpu)) {
 		upd_c(cpu, cpu->A & 0x80);
 		cpu->A = (cpu->A << 1) | carry;
 		upd_zn(cpu, cpu->A);
 		disable_acc_mode(cpu);
 	} else {
-		uint8_t val = get8(cpu);
+		val = get8(cpu);
 		upd_c(cpu, val & 0x80);
 		val = (val << 1) | carry;
 		write8(cpu, val);
@@ -1186,13 +1101,15 @@ static void
 OP_ROR(r2A03 *cpu)
 {
 	uint8_t carry = get_c(cpu);
+	uint8_t val;
+
 	if (is_acc_mode(cpu)) {
 		upd_c(cpu, cpu->A & 0x01);
 		cpu->A = (cpu->A >> 1) | (carry << 7);
 		upd_zn(cpu, cpu->A);
 		disable_acc_mode(cpu);
 	} else {
-		uint8_t val = get8(cpu);
+		val = get8(cpu);
 		upd_c(cpu, val & 0x01);
 		val = (val >> 1) | (carry << 7);
 		write8(cpu, val);
@@ -1386,25 +1303,25 @@ OP_SAX(r2A03 *cpu)
 static void
 OP_SBX(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
 OP_SHA(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
 OP_SHX(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
 OP_SHY(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
