@@ -520,6 +520,7 @@ static void
 write8_addr(r2A03 *cpu, uint16_t addr, uint8_t data)
 {
 	bus_write(cpu->bus, addr, data);
+	cpu->open_bus = data;
 }
 
 static void
@@ -546,7 +547,9 @@ push16(r2A03 *cpu, uint16_t data)
 static uint8_t
 get8_addr(r2A03 *cpu, uint16_t addr)
 {
-	return bus_read(cpu->bus, addr);
+	uint8_t val = bus_read(cpu->bus, addr);
+	cpu->open_bus = val;
+	return val;
 }
 
 static uint8_t
@@ -988,6 +991,7 @@ OP_JSR(r2A03 *cpu)
 {
 	push16(cpu, cpu->PC - 1);
 	cpu->PC = cpu->addr;
+	cpu->open_bus = cpu->addr >> 8;
 }
 
 static void
@@ -1225,7 +1229,11 @@ OP_TYA(r2A03 *cpu)
 static void
 OP_ALR(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: OPCODE */
+	uint8_t val = get8(cpu);
+	cpu->A &= val;
+	upd_c(cpu, cpu->A & MASK_CARRY);
+	cpu->A >>= 1;
+	upd_zn(cpu, cpu->A);
 }
 
 static void
@@ -1237,13 +1245,25 @@ OP_ANE(r2A03 *cpu)
 static void
 OP_ARR(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: OPCODE */
+	uint8_t val = get8(cpu);
+	uint8_t carry = get_c(cpu);
+
+	cpu->A &= val;
+	cpu->A = (cpu->A >> 1) | (carry << 7);
+
+	upd_n(cpu, cpu->A & MASK_NEGATIVE);
+	upd_c(cpu, cpu->A & 0x40);
+	upd_v(cpu, ((cpu->A >> 5) ^ (cpu->A >> 6)) & 0x01);
+	upd_z(cpu, cpu->A == 0);
 }
 
 static void
 OP_ANC(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: OPCODE */
+	uint8_t val = get8(cpu);
+	cpu->A &= val;
+	upd_zn(cpu, cpu->A);
+	upd_c(cpu, cpu->A & MASK_NEGATIVE);
 }
 
 static void
@@ -1306,7 +1326,13 @@ OP_SAX(r2A03 *cpu)
 static void
 OP_SBX(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: OPCODE */
+	uint8_t val = get8(cpu);
+	uint8_t acc_with_x = cpu->A & cpu->X;
+
+	cpu->X = acc_with_x - val;
+
+	upd_c(cpu, acc_with_x >= val);
+	upd_zn(cpu, cpu->X);
 }
 
 static void

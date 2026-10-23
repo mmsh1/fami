@@ -119,7 +119,7 @@ bus_read(bus *b, uint16_t addr)
 		return bus_cartrige_read(b, addr);
 	}
 
-	return 0; /* TODO: create error value */
+	return b->cpu->open_bus;
 }
 
 void

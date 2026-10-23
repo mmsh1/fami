@@ -14,6 +14,7 @@ typedef struct {
 	uint8_t irq;      /* interrupt request */
 	uint8_t acc_mode; /* accumulator addr mode flag */
 	uint8_t opcode;   /* loaded opcode */
+	uint8_t open_bus;
 
 	uint16_t PC;      /* program counter */
 	uint16_t addr;    /* loaded address */
