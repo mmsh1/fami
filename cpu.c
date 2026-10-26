@@ -37,6 +37,14 @@ typedef struct {
 	addr_mode mode;
 } instruction;
 
+typedef union {
+	struct {
+		uint8_t lo;
+		uint8_t hi;
+	} part;
+	uint16_t whole;
+} disassemble_arg;
+
 static inline uint8_t getflag(r2A03 *, uint8_t);
 static inline uint8_t get_c(r2A03 *);
 static inline uint8_t get_z(r2A03 *);
@@ -66,8 +74,13 @@ static inline void disable_acc_mode(r2A03 *);
 static inline int is_acc_mode(r2A03 *);
 static inline int has_memory_operand(addr_mode);
 
+static int is_page_crossed(r2A03 *);
+
+static disassemble_arg disassemble_get_arg(r2A03 *, addr_mode);
+static void disassemble_compose_asm_str(r2A03 *, uint8_t, char[]);
 static void disassemble(r2A03 *);
 
+static void page_cross_dummy_read(r2A03 *);
 static void write8_addr(r2A03 *, uint16_t, uint8_t);
 static void write8(r2A03 *, uint8_t);
 static void push8(r2A03 *, uint8_t);
@@ -498,6 +511,12 @@ upd_zn(r2A03 *cpu, uint8_t val)
 	upd_n(cpu, val & MASK_NEGATIVE); /* check if bit 7 of val is set */
 }
 
+static inline void
+disable_acc_mode(r2A03 *cpu)
+{
+	cpu->acc_mode = 0;
+}
+
 static inline int
 is_acc_mode(r2A03 *cpu)
 {
@@ -510,10 +529,28 @@ has_memory_operand(addr_mode mode)
 	return mode != ADDR_IMP && mode != ADDR_IMM;
 }
 
-static inline void
-disable_acc_mode(r2A03 *cpu)
+static int
+is_page_crossed(r2A03 *cpu)
 {
-	cpu->acc_mode = 0;
+	uint16_t address = cpu->addr;
+	uint16_t base;
+	addr_mode mode = optable[cpu->opcode].mode;
+
+	if (mode == ADDR_IAX) {
+		base = address - cpu->X;
+	} else if (mode == ADDR_IAY || mode == ADDR_INY) {
+		base = address - cpu->Y;
+	} else {
+		return 0;
+	}
+
+	return (address & 0xFF00) != (base & 0xFF00);
+}
+
+static void
+page_cross_dummy_read(r2A03 *cpu)
+{
+	(void)get8_addr(cpu, cpu->addr - 0x100);
 }
 
 static void
@@ -526,6 +563,9 @@ write8_addr(r2A03 *cpu, uint16_t addr, uint8_t data)
 static void
 write8(r2A03 *cpu, uint8_t data)
 {
+	if (is_page_crossed(cpu)) {
+		page_cross_dummy_read(cpu);
+	}
 	write8_addr(cpu, cpu->addr, data);
 }
 
@@ -555,15 +595,11 @@ get8_addr(r2A03 *cpu, uint16_t addr)
 static uint8_t
 get8(r2A03 *cpu)
 {
+	if (is_page_crossed(cpu)) {
+		cpu->stall++;
+		page_cross_dummy_read(cpu);
+	}
 	return get8_addr(cpu, cpu->addr);
-}
-
-static uint16_t
-get16_addr(r2A03 *cpu, uint16_t addr)
-{
-	uint8_t lo = get8_addr(cpu, addr);
-	uint8_t hi = get8_addr(cpu, addr + 1); /* TODO: check address somehow */
-	return (hi << 8) | lo;
 }
 
 static uint8_t
@@ -578,6 +614,14 @@ pop8(r2A03 *cpu)
 	cpu->SP++;
 	uint16_t addr = STACK_OFFSET + cpu->SP;
 	return get8_addr(cpu, addr);
+}
+
+static uint16_t
+get16_addr(r2A03 *cpu, uint16_t addr)
+{
+	uint8_t lo = get8_addr(cpu, addr);
+	uint8_t hi = get8_addr(cpu, addr + 1); /* TODO: check address somehow */
+	return (hi << 8) | lo;
 }
 
 static uint16_t
@@ -1370,7 +1414,7 @@ OP_SRE(r2A03 *cpu)
 static void
 OP_TAS(r2A03 *cpu)
 {
-	(void)cpu; /* TODO: */
+	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
@@ -1429,14 +1473,6 @@ cpu_set_stall_cycles(r2A03 *cpu, uint64_t cycles)
 {
 	cpu->stall = cycles;
 }
-
-typedef union {
-	struct {
-		uint8_t lo;
-		uint8_t hi;
-	} part;
-	uint16_t whole;
-} disassemble_arg;
 
 static disassemble_arg
 disassemble_get_arg(r2A03 *cpu, addr_mode amode)
