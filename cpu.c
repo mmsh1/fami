@@ -70,9 +70,10 @@ static inline void upd_v(r2A03 *, uint8_t);
 static inline void upd_n(r2A03 *, uint8_t);
 static inline void upd_zn(r2A03 *, uint8_t);
 
-static inline void disable_acc_mode(r2A03 *);
+static inline addr_mode get_addr_mode(r2A03 *);
 static inline int is_acc_mode(r2A03 *);
-static inline int has_memory_operand(addr_mode);
+static inline int is_indexed_absolute(r2A03 *);
+static inline int has_memory_operand(r2A03 *);
 
 static int is_page_crossed(r2A03 *);
 
@@ -80,7 +81,7 @@ static disassemble_arg disassemble_get_arg(r2A03 *, addr_mode);
 static void disassemble_compose_asm_str(r2A03 *, uint8_t, char[]);
 static void disassemble(r2A03 *);
 
-static void page_cross_dummy_read(r2A03 *);
+static void dummy_get8(r2A03 *, uint16_t);
 static void write8_addr(r2A03 *, uint16_t, uint8_t);
 static void write8(r2A03 *, uint8_t);
 static void push8(r2A03 *, uint8_t);
@@ -511,22 +512,31 @@ upd_zn(r2A03 *cpu, uint8_t val)
 	upd_n(cpu, val & MASK_NEGATIVE); /* check if bit 7 of val is set */
 }
 
-static inline void
-disable_acc_mode(r2A03 *cpu)
+static inline addr_mode
+get_addr_mode(r2A03 *cpu)
 {
-	cpu->acc_mode = 0;
+	return optable[cpu->opcode].mode;
 }
 
 static inline int
 is_acc_mode(r2A03 *cpu)
 {
-	return cpu->acc_mode;
+	addr_mode mode = get_addr_mode(cpu);
+	return mode == ADDR_ACC;
 }
 
 static inline int
-has_memory_operand(addr_mode mode)
+has_memory_operand(r2A03 *cpu)
 {
+	addr_mode mode = get_addr_mode(cpu);
 	return mode != ADDR_IMP && mode != ADDR_IMM;
+}
+
+static inline int
+is_indexed_absolute(r2A03 *cpu)
+{
+	addr_mode mode = get_addr_mode(cpu);
+	return mode == ADDR_IAX || mode == ADDR_IAY;
 }
 
 static int
@@ -534,7 +544,7 @@ is_page_crossed(r2A03 *cpu)
 {
 	uint16_t address = cpu->addr;
 	uint16_t base;
-	addr_mode mode = optable[cpu->opcode].mode;
+	addr_mode mode = get_addr_mode(cpu);
 
 	if (mode == ADDR_IAX) {
 		base = address - cpu->X;
@@ -548,9 +558,9 @@ is_page_crossed(r2A03 *cpu)
 }
 
 static void
-page_cross_dummy_read(r2A03 *cpu)
+dummy_get8(r2A03 *cpu, uint16_t addr)
 {
-	(void)get8_addr(cpu, cpu->addr - 0x100);
+	(void)get8_addr(cpu, addr);
 }
 
 static void
@@ -563,8 +573,11 @@ write8_addr(r2A03 *cpu, uint16_t addr, uint8_t data)
 static void
 write8(r2A03 *cpu, uint8_t data)
 {
+	if (is_indexed_absolute(cpu)) {
+		dummy_get8(cpu, cpu->addr);
+	}
 	if (is_page_crossed(cpu)) {
-		page_cross_dummy_read(cpu);
+		dummy_get8(cpu, cpu->addr - 0x100);
 	}
 	write8_addr(cpu, cpu->addr, data);
 }
@@ -597,7 +610,7 @@ get8(r2A03 *cpu)
 {
 	if (is_page_crossed(cpu)) {
 		cpu->stall++;
-		page_cross_dummy_read(cpu);
+		dummy_get8(cpu, cpu->addr - 0x100);
 	}
 	return get8_addr(cpu, cpu->addr);
 }
@@ -704,7 +717,7 @@ ADDR_ABS(r2A03 *cpu)
 static void
 ADDR_ACC(r2A03 *cpu)
 {
-	cpu->acc_mode = 1;
+	(void)cpu;
 }
 
 static void
@@ -729,7 +742,6 @@ static void
 ADDR_IMP(r2A03 *cpu)
 {
 	(void)cpu;
-	return;
 }
 
 static void
@@ -829,7 +841,6 @@ OP_ASL(r2A03 *cpu)
 		upd_c(cpu, cpu->A & 0x80);
 		cpu->A <<= 1;
 		upd_zn(cpu, cpu->A);
-		disable_acc_mode(cpu);
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & 0x80);
@@ -1068,7 +1079,6 @@ OP_LSR(r2A03 *cpu)
 		upd_c(cpu, cpu->A & MASK_CARRY);
 		cpu->A >>= 1;
 		upd_zn(cpu, cpu->A);
-		disable_acc_mode(cpu);
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & MASK_CARRY);
@@ -1087,7 +1097,7 @@ OP_NOP(r2A03 *cpu)
 	 * to the next instruction. However, a NOP with a memory
 	 * operand must perform a dummy read of that operand
 	 */
-	if (has_memory_operand(optable[cpu->opcode].mode)) {
+	if (has_memory_operand(cpu)) {
 		(void)get8(cpu);
 	}
 }
@@ -1135,7 +1145,6 @@ OP_ROL(r2A03 *cpu)
 		upd_c(cpu, cpu->A & 0x80);
 		cpu->A = (cpu->A << 1) | carry;
 		upd_zn(cpu, cpu->A);
-		disable_acc_mode(cpu);
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & 0x80);
@@ -1155,7 +1164,6 @@ OP_ROR(r2A03 *cpu)
 		upd_c(cpu, cpu->A & 0x01);
 		cpu->A = (cpu->A >> 1) | (carry << 7);
 		upd_zn(cpu, cpu->A);
-		disable_acc_mode(cpu);
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & 0x01);

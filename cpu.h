@@ -12,7 +12,6 @@ typedef struct {
 	uint8_t P;        /* flag register */
 	uint8_t nmi;      /* non-maskable interrupt */
 	uint8_t irq;      /* interrupt request */
-	uint8_t acc_mode; /* accumulator addr mode flag */
 	uint8_t opcode;   /* loaded opcode */
 	uint8_t open_bus;
 
