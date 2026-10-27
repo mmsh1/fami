@@ -103,16 +103,16 @@ bus_read(bus *b, uint16_t addr)
 	}
 
 	if (addr == 0x4015) {
-		return 0;
+		return b->cpu->open_bus & 0xE0;
 	}
 	
 	if (addr == 0x4016) {
-		return controller_read(b->controller);;
+		return controller_read(b->controller) & 0x1F | (b->cpu->open_bus & 0xE0);
 	}
 
 	if (addr == 0x4017) {
 		/* TODO: controller 2 read */
-		return 0;
+		return b->cpu->open_bus;
 	}
 
 	if (addr >= 0x6000) {

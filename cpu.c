@@ -601,7 +601,9 @@ static uint8_t
 get8_addr(r2A03 *cpu, uint16_t addr)
 {
 	uint8_t val = bus_read(cpu->bus, addr);
-	cpu->open_bus = val;
+	if (addr != 0x4015) { /* TODO: rewrite */
+		cpu->open_bus = val;
+	}
 	return val;
 }
 
@@ -844,6 +846,7 @@ OP_ASL(r2A03 *cpu)
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & 0x80);
+		write8(cpu, val);
 		val <<= 1;
 		write8(cpu, val);
 		upd_zn(cpu, val);
@@ -986,6 +989,7 @@ static void
 OP_DEC(r2A03 *cpu)
 {
 	uint8_t val = get8(cpu);
+	write8(cpu, val);
 	write8(cpu, val - 1);
 	upd_z(cpu, (val - 1) == 0);
 	upd_n(cpu, (val - 1) & MASK_NEGATIVE);
@@ -1016,6 +1020,7 @@ static void
 OP_INC(r2A03 *cpu)
 {
 	uint8_t val = get8(cpu);
+	write8(cpu, val);
 	val++;
 	write8(cpu, val);
 	upd_zn(cpu, val);
@@ -1082,6 +1087,7 @@ OP_LSR(r2A03 *cpu)
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & MASK_CARRY);
+		write8(cpu, val);
 		val >>= 1;
 		write8(cpu, val);
 		upd_zn(cpu, val);
@@ -1148,6 +1154,7 @@ OP_ROL(r2A03 *cpu)
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & 0x80);
+		write8(cpu, val);
 		val = (val << 1) | carry;
 		write8(cpu, val);
 		upd_zn(cpu, val);
@@ -1167,6 +1174,7 @@ OP_ROR(r2A03 *cpu)
 	} else {
 		val = get8(cpu);
 		upd_c(cpu, val & 0x01);
+		write8(cpu, val);
 		val = (val >> 1) | (carry << 7);
 		write8(cpu, val);
 		upd_zn(cpu, val);
