@@ -113,6 +113,7 @@ static inline int get_sprite_palette(uint8_t attr)                { return attr 
 
 static inline void set_status_sprite_overflow(uint8_t *status) { set_bit(status, PPUSTATUS_SPRITE_OVERFLOW); }
 static inline void set_status_vblank_enabled(uint8_t *status)  { set_bit(status, PPUSTATUS_VBLANK_ENABLED); }
+static inline void set_status_sprite_zero_hit(uint8_t *status) { set_bit(status, PPUSTATUS_SPRITE_ZERO_HIT); }
 
 static inline void unset_status_vblank_enabled(uint8_t *status) { unset_bit(status, PPUSTATUS_VBLANK_ENABLED); }
 
@@ -301,6 +302,23 @@ get_bg_pixel_addr(r2C02 *ppu)
 }
 
 static uint8_t
+sprite_pixel_color(r2C02 *ppu, int i, int x)
+{
+	uint8_t sprite_x = ppu->fetched_sprites[i].x;
+	uint8_t pixel_in_sprite;
+	uint8_t bit_hi, bit_lo;
+
+	if (sprite_x == 0xFF || x < sprite_x || x >= sprite_x + 8) {
+		return 0;
+	}
+
+	pixel_in_sprite = x - sprite_x;
+	bit_hi = (ppu->fetched_sprites[i].tile_hi >> pixel_in_sprite) & 0x01;
+	bit_lo = (ppu->fetched_sprites[i].tile_lo >> pixel_in_sprite) & 0x01;
+	return (bit_hi << 1) | bit_lo;
+}
+
+static uint8_t
 get_fg_pixel_addr(r2C02 *ppu)
 {
 	uint8_t bit_hi, bit_lo, color;
@@ -315,22 +333,7 @@ get_fg_pixel_addr(r2C02 *ppu)
 	}
 
 	for (i = 7; i >= 0; i--) {
-		sprite_x = ppu->fetched_sprites[i].x;
-
-		if (sprite_x == 0xFF) {
-			continue;
-		}
-
-		if (x < sprite_x || x >= sprite_x + 8) {
-			continue;
-		}
-
-		pixel_in_sprite = x - sprite_x;
-
-		bit_hi = (ppu->fetched_sprites[i].tile_hi >> pixel_in_sprite) & 0x01;
-		bit_lo = (ppu->fetched_sprites[i].tile_lo >> pixel_in_sprite) & 0x01;
-		color = (bit_hi << 1) | bit_lo;
-
+		color = sprite_pixel_color(ppu, i, x);
 		if (color == 0) {
 			continue;
 		}
@@ -499,6 +502,15 @@ nes_palette_to_rgb(uint16_t color_idx)
 	return ppu_colors[color_idx & 0x3F];
 }
 
+static int
+sprite_zero_hit_allowed(r2C02 *ppu, int x)
+{
+	return x != 255 &&
+		(x > 7 || is_bg_left_col_enabled(ppu->ppu_mask)) &&
+		(x > 7 || is_fg_left_col_enabled(ppu->ppu_mask)) &&
+		ppu->oam.sprites[0].pos_y < 239;
+}
+
 static void
 render_pixel(r2C02 *ppu)
 {
@@ -507,6 +519,15 @@ render_pixel(r2C02 *ppu)
 
 	uint8_t bg_pixel_addr = is_bg_rendering_enabled(ppu->ppu_mask) ? get_bg_pixel_addr(ppu) : 0;
 	uint8_t fg_pixel_addr = is_fg_rendering_enabled(ppu->ppu_mask) ? get_fg_pixel_addr(ppu) : 0;
+
+	/* TODO: reorganize! */
+	if (bg_pixel_addr != 0 &&
+		is_fg_rendering_enabled(ppu->ppu_mask) &&
+		ppu->sprite_zero_index >= 0 &&
+		sprite_zero_hit_allowed(ppu, x) &&
+		sprite_pixel_color(ppu, ppu->sprite_zero_index, x) != 0) {
+		set_status_sprite_zero_hit(&ppu->ppu_status);
+	}
 
 	uint16_t pixel_addr = 0x3F00 + select_priority(bg_pixel_addr, fg_pixel_addr);
 	uint16_t color_idx = vram_data_read(ppu, pixel_addr);
@@ -528,13 +549,11 @@ clear_sprites(r2C02 *ppu)
 static void
 evaluate_sprites(r2C02 *ppu)
 {
-	uint8_t m = 0, n = 0;
-	uint8_t y = 0;
-
-	int sprite_top = 0;
-	int sprite_bottom = 0;
+	uint8_t n = 0, y = 0;
+	int sprite_top, sprite_bottom = 0;
 
 	ppu->active_sprites = 0;
+	ppu->sprite_zero_index = -1;
 
 	for (; ppu->active_sprites < 8 && n < OAM_SIZE_SPRITES; n++) {
 		y = ppu->oam.sprites[n].pos_y;
@@ -543,6 +562,9 @@ evaluate_sprites(r2C02 *ppu)
 		sprite_bottom = y + get_sprites_height(ppu->ppu_ctrl);
 
 		if (in_range(ppu->scanline, sprite_top, sprite_bottom)) {
+			if (n == 0) {
+				ppu->sprite_zero_index = ppu->active_sprites;
+			}
 			ppu->oam2.sprites[ppu->active_sprites] = ppu->oam.sprites[n];
 			ppu->active_sprites++;
 		}
@@ -551,9 +573,11 @@ evaluate_sprites(r2C02 *ppu)
 	/* NOTE: here we have to implement NES sprite overflow bug.
 	 * See: https://www.nesdev.org/wiki/PPU_sprite_evaluation#Sprite_overflow_bug
 	 */
-	/* TODO: temporary solution, not accurate */
 	for (; n < OAM_SIZE_SPRITES; n++) {
 		y = ppu->oam.sprites[n].pos_y;
+
+		sprite_top = y;
+		sprite_bottom = y + get_sprites_height(ppu->ppu_ctrl);
 		
 		if (in_range(ppu->scanline, sprite_top, sprite_bottom)) {
 			set_status_sprite_overflow(&ppu->ppu_status);

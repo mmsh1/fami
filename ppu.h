@@ -88,6 +88,7 @@ typedef struct {
 	int cycle;    /* [0..340] */
 	int frame;
 	int active_sprites;
+	int sprite_zero_index;
 
 	uint8_t palette[0x20];
 	uint32_t frame_buf[SCREEN_WIDTH * SCREEN_HEIGHT];
