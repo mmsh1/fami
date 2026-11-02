@@ -679,14 +679,12 @@ poll_interrupts(r2A03 *cpu)
 {
 	if (cpu->nmi) {
 		handle_nmi(cpu);
-		cpu->stall += 7;
 		cpu->nmi = 0;
 		return;
 	}
 
 	if (cpu->irq) {
 		handle_irq(cpu);
-		cpu->stall += 7;
 		cpu->irq = 0;
 		return;
 	}
@@ -695,6 +693,7 @@ poll_interrupts(r2A03 *cpu)
 static void
 handle_irq(r2A03 *cpu)
 {
+	set_i(cpu);
 	push16(cpu, cpu->PC);
 	push8(cpu, cpu->P | MASK_UNUSED);
 	cpu->stall += 7;
@@ -914,6 +913,7 @@ static void
 OP_BRK(r2A03 *cpu)
 {
 	push16(cpu, cpu->PC + 1);
+	set_i(cpu);
 	push8(cpu, cpu->P | MASK_BREAK | MASK_UNUSED);
 	cpu->PC = get16_addr(cpu, VECTOR_IRQ);
 }

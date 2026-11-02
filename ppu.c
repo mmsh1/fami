@@ -855,6 +855,19 @@ background_pipeline(r2C02 *ppu, int visible_pixel, int prerender_pixel)
 	}
 }
 
+static int
+should_trigger_nmi(uint8_t old_ctrl, uint8_t new_ctrl, uint8_t status)
+{
+	/* NOTE: NMI interrupt should trigger on a 0 -> 1 transition when
+	 * vblank is active.
+	 * See: https://www.nesdev.org/wiki/NMI
+	*/
+	int nmi_was_off = !is_nmi_enabled(old_ctrl);
+	int nmi_is_on = is_nmi_enabled(new_ctrl);
+	
+	return nmi_was_off && nmi_is_on && is_vblank_enabled(status);
+}
+
 void
 ppu_tick(r2C02 *ppu)
 {
@@ -938,7 +951,7 @@ ppu_write(r2C02 *ppu, uint16_t addr, uint8_t val)
 
 	switch (addr) {
 		case PPUCTRL:
-			if (!is_nmi_enabled(ppu->ppu_ctrl) && is_vblank_enabled(ppu->ppu_status)) {
+			if (should_trigger_nmi(ppu->ppu_ctrl, val, ppu->ppu_status)) {
 				bus_cpu_trigger_nmi(ppu->bus);
 			}
 
