@@ -13,7 +13,7 @@ typedef struct {
 	/* r2A03 apu */
 	bus bus;
 	cpu cpu;
-	r2C02 ppu;
+	ppu ppu;
 	cartrige rom;
 	controller controller;
 	uint8_t ram[RAM_SIZE];

@@ -112,13 +112,13 @@ typedef struct {
 	struct bus *bus;
 
 	uint64_t total_cycles; /* TODO: remove! */
-} r2C02;
+} ppu;
 
-uint8_t ppu_get_frame_ready_flag(r2C02 *);
-void ppu_unset_frame_ready_flag(r2C02 *);
-void ppu_reset(r2C02 *, struct bus *);
-void ppu_tick(r2C02 *);
-uint8_t ppu_read(r2C02 *, uint16_t);
-void ppu_write(r2C02 *, uint16_t, uint8_t);
+uint8_t ppu_get_frame_ready_flag(ppu *);
+void ppu_unset_frame_ready_flag(ppu *);
+void ppu_reset(ppu *, struct bus *);
+void ppu_tick(ppu *);
+uint8_t ppu_read(ppu *, uint16_t);
+void ppu_write(ppu *, uint16_t, uint8_t);
 
 #endif /* NES_PPU_H */

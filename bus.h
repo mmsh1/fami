@@ -10,13 +10,13 @@
 
 typedef struct bus {
 	cpu *cpu;
-	r2C02 *ppu;
+	ppu *ppu;
 	uint8_t *ram;
 	controller *controller;
 	cartrige rom; /* TODO: use pointer? */
 } bus;
 
-void bus_init(bus *, cpu *, r2C02 *, uint8_t *, controller *, cartrige);
+void bus_init(bus *, cpu *, ppu *, uint8_t *, controller *, cartrige);
 
 void bus_apu_reset(bus *);
 void bus_apu_tick(bus *);
