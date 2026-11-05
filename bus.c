@@ -2,10 +2,9 @@
 #include <stdlib.h> /* exit */
 
 #include "bus.h"
-#include "controller.h"
 
 void
-bus_init(bus *bus, r2A03 *cpu, r2C02 *ppu, uint8_t *ram, controller *controller, cartrige rom)
+bus_init(bus *bus, cpu *cpu, r2C02 *ppu, uint8_t *ram, controller *controller, cartrige rom)
 {
 	bus->cpu = cpu;
 	bus->ppu = ppu;

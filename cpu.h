@@ -21,12 +21,12 @@ typedef struct {
 	uint64_t total;
 	uint64_t stall;
 	struct bus *bus;
-} r2A03;
+} cpu;
 
-void cpu_reset(r2A03 *, struct bus *);
-void cpu_tick(r2A03 *);
-void cpu_trigger_nmi(r2A03 *);
-uint64_t cpu_get_total_cycles(r2A03 *);
-void cpu_set_stall_cycles(r2A03 *, uint64_t);
+void cpu_reset(cpu *, struct bus *);
+void cpu_tick(cpu *);
+void cpu_trigger_nmi(cpu *);
+uint64_t cpu_get_total_cycles(cpu *);
+void cpu_set_stall_cycles(cpu *, uint64_t);
 
 #endif /* NES_CPU_H */

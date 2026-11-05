@@ -25,8 +25,8 @@ enum {
 	VECTOR_IRQ = 0xFFFE
 };
 
-typedef void (*opcode_func)(r2A03 *);
-typedef void (*addr_mode)(r2A03 *);
+typedef void (*opcode_func)(cpu *);
+typedef void (*addr_mode)(cpu *);
 
 typedef struct {
 	uint8_t idx;
@@ -45,156 +45,156 @@ typedef union {
 	uint16_t whole;
 } disassemble_arg;
 
-static inline uint8_t getflag(r2A03 *, uint8_t);
-static inline uint8_t get_c(r2A03 *);
-static inline uint8_t get_z(r2A03 *);
-static inline uint8_t get_v(r2A03 *);
-static inline uint8_t get_n(r2A03 *);
+static inline uint8_t getflag(cpu *, uint8_t);
+static inline uint8_t get_c(cpu *);
+static inline uint8_t get_z(cpu *);
+static inline uint8_t get_v(cpu *);
+static inline uint8_t get_n(cpu *);
 
-static inline void setflag(r2A03 *, uint8_t);
-static inline void set_c(r2A03 *);
-static inline void set_i(r2A03 *);
-static inline void set_d(r2A03 *);
-static inline void set_b(r2A03 *);
+static inline void setflag(cpu *, uint8_t);
+static inline void set_c(cpu *);
+static inline void set_i(cpu *);
+static inline void set_d(cpu *);
+static inline void set_b(cpu *);
 
-static inline void unsetflag(r2A03 *, uint8_t);
-static inline void unset_b(r2A03 *);
-static inline void unset_c(r2A03 *);
-static inline void unset_d(r2A03 *);
-static inline void unset_v(r2A03 *);
+static inline void unsetflag(cpu *, uint8_t);
+static inline void unset_b(cpu *);
+static inline void unset_c(cpu *);
+static inline void unset_d(cpu *);
+static inline void unset_v(cpu *);
 
-static inline void upd_flag(r2A03 *, uint8_t, uint8_t);
-static inline void upd_c(r2A03 *, uint8_t);
-static inline void upd_z(r2A03 *, uint8_t);
-static inline void upd_v(r2A03 *, uint8_t);
-static inline void upd_n(r2A03 *, uint8_t);
-static inline void upd_zn(r2A03 *, uint8_t);
+static inline void upd_flag(cpu *, uint8_t, uint8_t);
+static inline void upd_c(cpu *, uint8_t);
+static inline void upd_z(cpu *, uint8_t);
+static inline void upd_v(cpu *, uint8_t);
+static inline void upd_n(cpu *, uint8_t);
+static inline void upd_zn(cpu *, uint8_t);
 
-static inline addr_mode get_addr_mode(r2A03 *);
-static inline int is_acc_mode(r2A03 *);
-static inline int is_indexed_absolute(r2A03 *);
-static inline int has_memory_operand(r2A03 *);
+static inline addr_mode get_addr_mode(cpu *);
+static inline int is_acc_mode(cpu *);
+static inline int is_indexed_absolute(cpu *);
+static inline int has_memory_operand(cpu *);
 
-static int is_page_crossed(r2A03 *);
+static int is_page_crossed(cpu *);
 
-static disassemble_arg disassemble_get_arg(r2A03 *, addr_mode);
-static void disassemble_compose_asm_str(r2A03 *, uint8_t, char[]);
-static void disassemble(r2A03 *);
+static disassemble_arg disassemble_get_arg(cpu *, addr_mode);
+static void disassemble_compose_asm_str(cpu *, uint8_t, char[]);
+static void disassemble(cpu *);
 
-static void dummy_get8(r2A03 *, uint16_t);
-static void write8_addr(r2A03 *, uint16_t, uint8_t);
-static void write8(r2A03 *, uint8_t);
-static void push8(r2A03 *, uint8_t);
-static void push16(r2A03 *, uint16_t);
-static uint8_t get8_addr(r2A03 *, uint16_t);
-static uint8_t get8(r2A03 *);
-static uint8_t read8(r2A03 *);
-static uint8_t pop8(r2A03 *);
-static uint16_t get16_addr(r2A03 *, uint16_t);
-static uint16_t pop16(r2A03 *);
-static uint16_t read16(r2A03 *);
+static void dummy_get8(cpu *, uint16_t);
+static void write8_addr(cpu *, uint16_t, uint8_t);
+static void write8(cpu *, uint8_t);
+static void push8(cpu *, uint8_t);
+static void push16(cpu *, uint16_t);
+static uint8_t get8_addr(cpu *, uint16_t);
+static uint8_t get8(cpu *);
+static uint8_t read8(cpu *);
+static uint8_t pop8(cpu *);
+static uint16_t get16_addr(cpu *, uint16_t);
+static uint16_t pop16(cpu *);
+static uint16_t read16(cpu *);
 
 static inline uint8_t overflowed_sum(uint8_t, uint8_t, uint8_t);
 static inline uint8_t overflowed_sub(uint8_t, uint8_t, uint8_t);
 
-static void poll_interrupts(r2A03 *);
-static void handle_irq(r2A03 *);
-static void handle_nmi(r2A03 *);
+static void poll_interrupts(cpu *);
+static void handle_irq(cpu *);
+static void handle_nmi(cpu *);
 
-static void ADDR_ABS(r2A03 *); /* absolute */
-static void ADDR_ACC(r2A03 *); /* accumulator */
-static void ADDR_IAX(r2A03 *); /* indexed absolute x */
-static void ADDR_IAY(r2A03 *); /* indexed absolute y */
-static void ADDR_IMM(r2A03 *); /* immediate */
-static void ADDR_IMP(r2A03 *); /* implied */
-static void ADDR_IND(r2A03 *); /* indirect */
-static void ADDR_INX(r2A03 *); /* indexed indirect x */
-static void ADDR_INY(r2A03 *); /* indirect indexed y */
-static void ADDR_IZX(r2A03 *); /* indexed zero page x */
-static void ADDR_IZY(r2A03 *); /* indexed zero page y */
-static void ADDR_REL(r2A03 *); /* relative */
-static void ADDR_ZPG(r2A03 *); /* zero page */
+static void ADDR_ABS(cpu *); /* absolute */
+static void ADDR_ACC(cpu *); /* accumulator */
+static void ADDR_IAX(cpu *); /* indexed absolute x */
+static void ADDR_IAY(cpu *); /* indexed absolute y */
+static void ADDR_IMM(cpu *); /* immediate */
+static void ADDR_IMP(cpu *); /* implied */
+static void ADDR_IND(cpu *); /* indirect */
+static void ADDR_INX(cpu *); /* indexed indirect x */
+static void ADDR_INY(cpu *); /* indirect indexed y */
+static void ADDR_IZX(cpu *); /* indexed zero page x */
+static void ADDR_IZY(cpu *); /* indexed zero page y */
+static void ADDR_REL(cpu *); /* relative */
+static void ADDR_ZPG(cpu *); /* zero page */
 
-static void ADDR_ILL(r2A03 *); /* illegal */
+static void ADDR_ILL(cpu *); /* illegal */
 
-static void OP_ADC(r2A03 *);
-static void OP_AND(r2A03 *);
-static void OP_ASL(r2A03 *);
-static void OP_BCC(r2A03 *);
-static void OP_BCS(r2A03 *);
-static void OP_BEQ(r2A03 *);
-static void OP_BIT(r2A03 *);
-static void OP_BMI(r2A03 *);
-static void OP_BNE(r2A03 *);
-static void OP_BPL(r2A03 *);
-static void OP_BRK(r2A03 *);
-static void OP_BVC(r2A03 *);
-static void OP_BVS(r2A03 *);
-static void OP_CLC(r2A03 *);
-static void OP_CLD(r2A03 *);
-static void OP_CLI(r2A03 *);
-static void OP_CLV(r2A03 *);
-static void OP_CMP(r2A03 *);
-static void OP_CPX(r2A03 *);
-static void OP_CPY(r2A03 *);
-static void OP_DEC(r2A03 *);
-static void OP_DEX(r2A03 *);
-static void OP_DEY(r2A03 *);
-static void OP_EOR(r2A03 *);
-static void OP_INC(r2A03 *);
-static void OP_INX(r2A03 *);
-static void OP_INY(r2A03 *);
-static void OP_JMP(r2A03 *);
-static void OP_JSR(r2A03 *);
-static void OP_LDA(r2A03 *);
-static void OP_LDX(r2A03 *);
-static void OP_LDY(r2A03 *);
-static void OP_LSR(r2A03 *);
-static void OP_NOP(r2A03 *);
-static void OP_ORA(r2A03 *);
-static void OP_PHA(r2A03 *);
-static void OP_PHP(r2A03 *);
-static void OP_PLA(r2A03 *);
-static void OP_PLP(r2A03 *);
-static void OP_ROL(r2A03 *);
-static void OP_ROR(r2A03 *);
-static void OP_RTI(r2A03 *);
-static void OP_RTS(r2A03 *);
-static void OP_SBC(r2A03 *);
-static void OP_SEC(r2A03 *);
-static void OP_SED(r2A03 *);
-static void OP_SEI(r2A03 *);
-static void OP_STA(r2A03 *);
-static void OP_STX(r2A03 *);
-static void OP_STY(r2A03 *);
-static void OP_TAX(r2A03 *);
-static void OP_TAY(r2A03 *);
-static void OP_TSX(r2A03 *);
-static void OP_TXA(r2A03 *);
-static void OP_TXS(r2A03 *);
-static void OP_TYA(r2A03 *);
+static void OP_ADC(cpu *);
+static void OP_AND(cpu *);
+static void OP_ASL(cpu *);
+static void OP_BCC(cpu *);
+static void OP_BCS(cpu *);
+static void OP_BEQ(cpu *);
+static void OP_BIT(cpu *);
+static void OP_BMI(cpu *);
+static void OP_BNE(cpu *);
+static void OP_BPL(cpu *);
+static void OP_BRK(cpu *);
+static void OP_BVC(cpu *);
+static void OP_BVS(cpu *);
+static void OP_CLC(cpu *);
+static void OP_CLD(cpu *);
+static void OP_CLI(cpu *);
+static void OP_CLV(cpu *);
+static void OP_CMP(cpu *);
+static void OP_CPX(cpu *);
+static void OP_CPY(cpu *);
+static void OP_DEC(cpu *);
+static void OP_DEX(cpu *);
+static void OP_DEY(cpu *);
+static void OP_EOR(cpu *);
+static void OP_INC(cpu *);
+static void OP_INX(cpu *);
+static void OP_INY(cpu *);
+static void OP_JMP(cpu *);
+static void OP_JSR(cpu *);
+static void OP_LDA(cpu *);
+static void OP_LDX(cpu *);
+static void OP_LDY(cpu *);
+static void OP_LSR(cpu *);
+static void OP_NOP(cpu *);
+static void OP_ORA(cpu *);
+static void OP_PHA(cpu *);
+static void OP_PHP(cpu *);
+static void OP_PLA(cpu *);
+static void OP_PLP(cpu *);
+static void OP_ROL(cpu *);
+static void OP_ROR(cpu *);
+static void OP_RTI(cpu *);
+static void OP_RTS(cpu *);
+static void OP_SBC(cpu *);
+static void OP_SEC(cpu *);
+static void OP_SED(cpu *);
+static void OP_SEI(cpu *);
+static void OP_STA(cpu *);
+static void OP_STX(cpu *);
+static void OP_STY(cpu *);
+static void OP_TAX(cpu *);
+static void OP_TAY(cpu *);
+static void OP_TSX(cpu *);
+static void OP_TXA(cpu *);
+static void OP_TXS(cpu *);
+static void OP_TYA(cpu *);
 
-static void OP_ALR(r2A03 *);
-static void OP_ANE(r2A03 *);
-static void OP_ARR(r2A03 *);
-static void OP_ANC(r2A03 *);
-static void OP_DCP(r2A03 *);
-static void OP_ISC(r2A03 *);
-static void OP_LAS(r2A03 *);
-static void OP_LAX(r2A03 *);
-static void OP_LXA(r2A03 *);
-static void OP_RLA(r2A03 *);
-static void OP_RRA(r2A03 *);
-static void OP_SAX(r2A03 *);
-static void OP_SBX(r2A03 *);
-static void OP_SHA(r2A03 *);
-static void OP_SHX(r2A03 *);
-static void OP_SHY(r2A03 *);
-static void OP_SLO(r2A03 *);
-static void OP_SRE(r2A03 *);
-static void OP_TAS(r2A03 *);
+static void OP_ALR(cpu *);
+static void OP_ANE(cpu *);
+static void OP_ARR(cpu *);
+static void OP_ANC(cpu *);
+static void OP_DCP(cpu *);
+static void OP_ISC(cpu *);
+static void OP_LAS(cpu *);
+static void OP_LAX(cpu *);
+static void OP_LXA(cpu *);
+static void OP_RLA(cpu *);
+static void OP_RRA(cpu *);
+static void OP_SAX(cpu *);
+static void OP_SBX(cpu *);
+static void OP_SHA(cpu *);
+static void OP_SHX(cpu *);
+static void OP_SHY(cpu *);
+static void OP_SLO(cpu *);
+static void OP_SRE(cpu *);
+static void OP_TAS(cpu *);
 
-static void OP_ILL(r2A03 *); /* illegal */
+static void OP_ILL(cpu *); /* illegal */
 
 static instruction
 optable[0xFF + 1] = {
@@ -471,27 +471,27 @@ optable[0xFF + 1] = {
 	{ .idx = 0xFF, .name = "ISC", .func = OP_ISC, .cycles = 7, .mode = ADDR_IAX }
 };
 
-static inline uint8_t getflag(r2A03 *cpu, uint8_t mask) { return cpu->P & mask; }
-static inline uint8_t get_c(r2A03 *cpu)                 { return getflag(cpu, MASK_CARRY); }
-static inline uint8_t get_n(r2A03 *cpu)                 { return getflag(cpu, MASK_NEGATIVE); }
-static inline uint8_t get_v(r2A03 *cpu)                 { return getflag(cpu, MASK_OVERFLOW); }
-static inline uint8_t get_z(r2A03 *cpu)                 { return getflag(cpu, MASK_ZERO); }
+static inline uint8_t getflag(cpu *cpu, uint8_t mask) { return cpu->P & mask; }
+static inline uint8_t get_c(cpu *cpu)                 { return getflag(cpu, MASK_CARRY); }
+static inline uint8_t get_n(cpu *cpu)                 { return getflag(cpu, MASK_NEGATIVE); }
+static inline uint8_t get_v(cpu *cpu)                 { return getflag(cpu, MASK_OVERFLOW); }
+static inline uint8_t get_z(cpu *cpu)                 { return getflag(cpu, MASK_ZERO); }
 
-static inline void setflag(r2A03 *cpu, uint8_t mask) { cpu->P |= mask; }
-static inline void set_b(r2A03 *cpu)                 { setflag(cpu, MASK_BREAK); }
-static inline void set_c(r2A03 *cpu)                 { setflag(cpu, MASK_CARRY); }
-static inline void set_d(r2A03 *cpu)                 { setflag(cpu, MASK_DECIMAL); }
-static inline void set_i(r2A03 *cpu)                 { setflag(cpu, MASK_INTERRUPT_DISABLE); }
+static inline void setflag(cpu *cpu, uint8_t mask) { cpu->P |= mask; }
+static inline void set_b(cpu *cpu)                 { setflag(cpu, MASK_BREAK); }
+static inline void set_c(cpu *cpu)                 { setflag(cpu, MASK_CARRY); }
+static inline void set_d(cpu *cpu)                 { setflag(cpu, MASK_DECIMAL); }
+static inline void set_i(cpu *cpu)                 { setflag(cpu, MASK_INTERRUPT_DISABLE); }
 
-static inline void unsetflag(r2A03 *cpu, uint8_t mask) { cpu->P &= ~mask; }
-static inline void unset_b(r2A03 *cpu)                 { unsetflag(cpu, MASK_BREAK); }
-static inline void unset_c(r2A03 *cpu)                 { unsetflag(cpu, MASK_CARRY); }
-static inline void unset_d(r2A03 *cpu)                 { unsetflag(cpu, MASK_DECIMAL); }
-static inline void unset_i(r2A03 *cpu)                 { unsetflag(cpu, MASK_INTERRUPT_DISABLE); }
-static inline void unset_v(r2A03 *cpu)                 { unsetflag(cpu, MASK_OVERFLOW); }
+static inline void unsetflag(cpu *cpu, uint8_t mask) { cpu->P &= ~mask; }
+static inline void unset_b(cpu *cpu)                 { unsetflag(cpu, MASK_BREAK); }
+static inline void unset_c(cpu *cpu)                 { unsetflag(cpu, MASK_CARRY); }
+static inline void unset_d(cpu *cpu)                 { unsetflag(cpu, MASK_DECIMAL); }
+static inline void unset_i(cpu *cpu)                 { unsetflag(cpu, MASK_INTERRUPT_DISABLE); }
+static inline void unset_v(cpu *cpu)                 { unsetflag(cpu, MASK_OVERFLOW); }
 
 static inline void
-upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
+upd_flag(cpu *cpu, uint8_t mask, uint8_t val)
 {
 	if (val) {
 		setflag(cpu, mask);
@@ -500,47 +500,47 @@ upd_flag(r2A03 *cpu, uint8_t mask, uint8_t val)
 	}
 }
 
-static inline void upd_c(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_CARRY, val); }
-static inline void upd_z(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_ZERO, val); }
-static inline void upd_v(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_OVERFLOW, val); }
-static inline void upd_n(r2A03 *cpu, uint8_t val) { upd_flag(cpu, MASK_NEGATIVE, val); }
+static inline void upd_c(cpu *cpu, uint8_t val) { upd_flag(cpu, MASK_CARRY, val); }
+static inline void upd_z(cpu *cpu, uint8_t val) { upd_flag(cpu, MASK_ZERO, val); }
+static inline void upd_v(cpu *cpu, uint8_t val) { upd_flag(cpu, MASK_OVERFLOW, val); }
+static inline void upd_n(cpu *cpu, uint8_t val) { upd_flag(cpu, MASK_NEGATIVE, val); }
 
 static inline void
-upd_zn(r2A03 *cpu, uint8_t val)
+upd_zn(cpu *cpu, uint8_t val)
 {
 	upd_z(cpu, val == 0);
 	upd_n(cpu, val & MASK_NEGATIVE); /* check if bit 7 of val is set */
 }
 
 static inline addr_mode
-get_addr_mode(r2A03 *cpu)
+get_addr_mode(cpu *cpu)
 {
 	return optable[cpu->opcode].mode;
 }
 
 static inline int
-is_acc_mode(r2A03 *cpu)
+is_acc_mode(cpu *cpu)
 {
 	addr_mode mode = get_addr_mode(cpu);
 	return mode == ADDR_ACC;
 }
 
 static inline int
-has_memory_operand(r2A03 *cpu)
+has_memory_operand(cpu *cpu)
 {
 	addr_mode mode = get_addr_mode(cpu);
 	return mode != ADDR_IMP && mode != ADDR_IMM;
 }
 
 static inline int
-is_indexed_absolute(r2A03 *cpu)
+is_indexed_absolute(cpu *cpu)
 {
 	addr_mode mode = get_addr_mode(cpu);
 	return mode == ADDR_IAX || mode == ADDR_IAY;
 }
 
 static int
-is_page_crossed(r2A03 *cpu)
+is_page_crossed(cpu *cpu)
 {
 	uint16_t address = cpu->addr;
 	uint16_t base;
@@ -558,20 +558,20 @@ is_page_crossed(r2A03 *cpu)
 }
 
 static void
-dummy_get8(r2A03 *cpu, uint16_t addr)
+dummy_get8(cpu *cpu, uint16_t addr)
 {
 	(void)get8_addr(cpu, addr);
 }
 
 static void
-write8_addr(r2A03 *cpu, uint16_t addr, uint8_t data)
+write8_addr(cpu *cpu, uint16_t addr, uint8_t data)
 {
 	bus_write(cpu->bus, addr, data);
 	cpu->open_bus = data;
 }
 
 static void
-write8(r2A03 *cpu, uint8_t data)
+write8(cpu *cpu, uint8_t data)
 {
 	if (is_indexed_absolute(cpu)) {
 		dummy_get8(cpu, cpu->addr);
@@ -583,7 +583,7 @@ write8(r2A03 *cpu, uint8_t data)
 }
 
 static void
-push8(r2A03 *cpu, uint8_t data)
+push8(cpu *cpu, uint8_t data)
 {
 	uint16_t addr = STACK_OFFSET + cpu->SP;
 	cpu->SP--;
@@ -591,14 +591,14 @@ push8(r2A03 *cpu, uint8_t data)
 }
 
 static void
-push16(r2A03 *cpu, uint16_t data)
+push16(cpu *cpu, uint16_t data)
 {
 	push8(cpu, (uint8_t)(data >> 8));
 	push8(cpu, (uint8_t)(data & 0x00FF));
 }
 
 static uint8_t
-get8_addr(r2A03 *cpu, uint16_t addr)
+get8_addr(cpu *cpu, uint16_t addr)
 {
 	uint8_t val = bus_read(cpu->bus, addr);
 	if (addr != 0x4015) { /* TODO: rewrite */
@@ -608,7 +608,7 @@ get8_addr(r2A03 *cpu, uint16_t addr)
 }
 
 static uint8_t
-get8(r2A03 *cpu)
+get8(cpu *cpu)
 {
 	if (is_page_crossed(cpu)) {
 		cpu->stall++;
@@ -618,13 +618,13 @@ get8(r2A03 *cpu)
 }
 
 static uint8_t
-read8(r2A03 *cpu)
+read8(cpu *cpu)
 {
 	return get8_addr(cpu, cpu->PC++);
 }
 
 static uint8_t
-pop8(r2A03 *cpu)
+pop8(cpu *cpu)
 {
 	cpu->SP++;
 	uint16_t addr = STACK_OFFSET + cpu->SP;
@@ -632,7 +632,7 @@ pop8(r2A03 *cpu)
 }
 
 static uint16_t
-get16_addr(r2A03 *cpu, uint16_t addr)
+get16_addr(cpu *cpu, uint16_t addr)
 {
 	uint8_t lo = get8_addr(cpu, addr);
 	uint8_t hi = get8_addr(cpu, addr + 1); /* TODO: check address somehow */
@@ -640,7 +640,7 @@ get16_addr(r2A03 *cpu, uint16_t addr)
 }
 
 static uint16_t
-pop16(r2A03 *cpu)
+pop16(cpu *cpu)
 {
 	uint8_t lo = pop8(cpu);
 	uint8_t hi = pop8(cpu);
@@ -648,7 +648,7 @@ pop16(r2A03 *cpu)
 }
 
 static uint16_t
-read16(r2A03 *cpu)
+read16(cpu *cpu)
 {
 	uint8_t lo = read8(cpu);
 	uint8_t hi = read8(cpu);
@@ -675,7 +675,7 @@ overflowed_sub(uint8_t a, uint8_t b, uint8_t c)
 }
 
 static void
-poll_interrupts(r2A03 *cpu)
+poll_interrupts(cpu *cpu)
 {
 	if (cpu->nmi) {
 		handle_nmi(cpu);
@@ -691,7 +691,7 @@ poll_interrupts(r2A03 *cpu)
 }
 
 static void
-handle_irq(r2A03 *cpu)
+handle_irq(cpu *cpu)
 {
 	set_i(cpu);
 	push16(cpu, cpu->PC);
@@ -701,7 +701,7 @@ handle_irq(r2A03 *cpu)
 }
 
 static void
-handle_nmi(r2A03 *cpu)
+handle_nmi(cpu *cpu)
 {
 	push16(cpu, cpu->PC);
 	push8(cpu, cpu->P | MASK_UNUSED);
@@ -710,43 +710,43 @@ handle_nmi(r2A03 *cpu)
 }
 
 static void
-ADDR_ABS(r2A03 *cpu)
+ADDR_ABS(cpu *cpu)
 {
 	cpu->addr = read16(cpu);
 }
 
 static void
-ADDR_ACC(r2A03 *cpu)
+ADDR_ACC(cpu *cpu)
 {
 	(void)cpu;
 }
 
 static void
-ADDR_IAX(r2A03 *cpu)
+ADDR_IAX(cpu *cpu)
 {
 	cpu->addr = read16(cpu) + cpu->X;
 }
 
 static void
-ADDR_IAY(r2A03 *cpu)
+ADDR_IAY(cpu *cpu)
 {
 	cpu->addr = read16(cpu) + cpu->Y;
 }
 
 static void
-ADDR_IMM(r2A03 *cpu)
+ADDR_IMM(cpu *cpu)
 {
 	cpu->addr = cpu->PC++;
 }
 
 static void
-ADDR_IMP(r2A03 *cpu)
+ADDR_IMP(cpu *cpu)
 {
 	(void)cpu;
 }
 
 static void
-ADDR_IND(r2A03 *cpu)
+ADDR_IND(cpu *cpu)
 {
 	/* NOTE: here we implement 6502's indirect addressing bug.
 	 * See: https://www.reddit.com/r/EmuDev/comments/fi29ah/6502_jump_indirect_error
@@ -764,7 +764,7 @@ ADDR_IND(r2A03 *cpu)
 }
 
 static void
-ADDR_INX(r2A03 *cpu)
+ADDR_INX(cpu *cpu)
 {
 	uint8_t location = read8(cpu);
 	uint8_t addr_lo = get8_addr(cpu, (location + cpu->X) & 0x00FF);
@@ -773,7 +773,7 @@ ADDR_INX(r2A03 *cpu)
 }
 
 static void
-ADDR_INY(r2A03 *cpu)
+ADDR_INY(cpu *cpu)
 {
 	uint8_t location = read8(cpu);
 	uint8_t addr_lo = get8_addr(cpu, location);
@@ -782,38 +782,38 @@ ADDR_INY(r2A03 *cpu)
 }
 
 static void
-ADDR_IZX(r2A03 *cpu)
+ADDR_IZX(cpu *cpu)
 {
 	cpu->addr = (read8(cpu) + cpu->X) & 0x00FF;
 }
 
 static void
-ADDR_IZY(r2A03 *cpu)
+ADDR_IZY(cpu *cpu)
 {
 	cpu->addr = (read8(cpu) + cpu->Y) & 0x00FF;
 }
 
 static void
-ADDR_REL(r2A03 *cpu)
+ADDR_REL(cpu *cpu)
 {
 	int8_t offset = (int8_t)read8(cpu);
 	cpu->addr = (uint16_t)(cpu->PC + offset);
 }
 
 static void
-ADDR_ZPG(r2A03 *cpu) {
+ADDR_ZPG(cpu *cpu) {
 	cpu->addr = read8(cpu);
 }
 
 static void
-ADDR_ILL(r2A03 *cpu)
+ADDR_ILL(cpu *cpu)
 {
 	(void)cpu; /* to remove compiler warning */
 	fprintf(stderr, "illegal address mode!\n");
 }
 
 static void
-OP_ADC(r2A03 *cpu)
+OP_ADC(cpu *cpu)
 {
 	uint8_t acc = cpu->A;
 	uint8_t val = get8(cpu);
@@ -827,14 +827,14 @@ OP_ADC(r2A03 *cpu)
 }
 
 static void
-OP_AND(r2A03 *cpu)
+OP_AND(cpu *cpu)
 {
 	cpu->A &= get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
-OP_ASL(r2A03 *cpu)
+OP_ASL(cpu *cpu)
 {
 	uint8_t val;
 
@@ -853,7 +853,7 @@ OP_ASL(r2A03 *cpu)
 }
 
 static void
-OP_BCC(r2A03 *cpu)
+OP_BCC(cpu *cpu)
 {
 	if (!get_c(cpu)) {
 		cpu->PC = cpu->addr;
@@ -861,7 +861,7 @@ OP_BCC(r2A03 *cpu)
 }
 
 static void
-OP_BCS(r2A03 *cpu)
+OP_BCS(cpu *cpu)
 {
 	if (get_c(cpu)) {
 		cpu->PC = cpu->addr;
@@ -869,7 +869,7 @@ OP_BCS(r2A03 *cpu)
 }
 
 static void
-OP_BEQ(r2A03 *cpu)
+OP_BEQ(cpu *cpu)
 {
 	if (get_z(cpu)) {
 		cpu->PC = cpu->addr;
@@ -877,7 +877,7 @@ OP_BEQ(r2A03 *cpu)
 }
 
 static void
-OP_BIT(r2A03 *cpu)
+OP_BIT(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	upd_z(cpu, (cpu->A & val) == 0);
@@ -886,7 +886,7 @@ OP_BIT(r2A03 *cpu)
 }
 
 static void
-OP_BMI(r2A03 *cpu)
+OP_BMI(cpu *cpu)
 {
 	if (get_n(cpu)) {
 		cpu->PC = cpu->addr;
@@ -894,7 +894,7 @@ OP_BMI(r2A03 *cpu)
 }
 
 static void
-OP_BNE(r2A03 *cpu)
+OP_BNE(cpu *cpu)
 {
 	if (!get_z(cpu)) {
 		cpu->PC = cpu->addr;
@@ -902,7 +902,7 @@ OP_BNE(r2A03 *cpu)
 }
 
 static void
-OP_BPL(r2A03 *cpu)
+OP_BPL(cpu *cpu)
 {
 	if (!get_n(cpu)) {
 		cpu->PC = cpu->addr;
@@ -910,7 +910,7 @@ OP_BPL(r2A03 *cpu)
 }
 
 static void
-OP_BRK(r2A03 *cpu)
+OP_BRK(cpu *cpu)
 {
 	push16(cpu, cpu->PC + 1);
 	set_i(cpu);
@@ -919,7 +919,7 @@ OP_BRK(r2A03 *cpu)
 }
 
 static void
-OP_BVC(r2A03 *cpu)
+OP_BVC(cpu *cpu)
 {
 	if (!get_v(cpu)) {
 		cpu->PC = cpu->addr;
@@ -927,7 +927,7 @@ OP_BVC(r2A03 *cpu)
 }
 
 static void
-OP_BVS(r2A03 *cpu)
+OP_BVS(cpu *cpu)
 {
 	if (get_v(cpu)) {
 		cpu->PC = cpu->addr;
@@ -935,31 +935,31 @@ OP_BVS(r2A03 *cpu)
 }
 
 static void
-OP_CLC(r2A03 *cpu)
+OP_CLC(cpu *cpu)
 {
 	unset_c(cpu);
 }
 
 static void
-OP_CLD(r2A03 *cpu)
+OP_CLD(cpu *cpu)
 {
 	unset_d(cpu);
 }
 
 static void
-OP_CLI(r2A03 *cpu)
+OP_CLI(cpu *cpu)
 {
 	unset_i(cpu);
 }
 
 static void
-OP_CLV(r2A03 *cpu)
+OP_CLV(cpu *cpu)
 {
 	unset_v(cpu);
 }
 
 static void
-OP_CMP(r2A03 *cpu)
+OP_CMP(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->A >= val);
@@ -968,7 +968,7 @@ OP_CMP(r2A03 *cpu)
 }
 
 static void
-OP_CPX(r2A03 *cpu)
+OP_CPX(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->X >= val);
@@ -977,7 +977,7 @@ OP_CPX(r2A03 *cpu)
 }
 
 static void
-OP_CPY(r2A03 *cpu)
+OP_CPY(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	upd_c(cpu, cpu->Y >= val);
@@ -986,7 +986,7 @@ OP_CPY(r2A03 *cpu)
 }
 
 static void
-OP_DEC(r2A03 *cpu)
+OP_DEC(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	write8(cpu, val);
@@ -996,28 +996,28 @@ OP_DEC(r2A03 *cpu)
 }
 
 static void
-OP_DEX(r2A03 *cpu)
+OP_DEX(cpu *cpu)
 {
 	cpu->X--;
 	upd_zn(cpu, cpu->X);
 }
 
 static void
-OP_DEY(r2A03 *cpu)
+OP_DEY(cpu *cpu)
 {
 	cpu->Y--;
 	upd_zn(cpu, cpu->Y);
 }
 
 static void
-OP_EOR(r2A03 *cpu)
+OP_EOR(cpu *cpu)
 {
 	cpu->A ^= get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
-OP_INC(r2A03 *cpu)
+OP_INC(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	write8(cpu, val);
@@ -1027,27 +1027,27 @@ OP_INC(r2A03 *cpu)
 }
 
 static void
-OP_INX(r2A03 *cpu)
+OP_INX(cpu *cpu)
 {
 	cpu->X++;
 	upd_zn(cpu, cpu->X);
 }
 
 static void
-OP_INY(r2A03 *cpu)
+OP_INY(cpu *cpu)
 {
 	cpu->Y++;
 	upd_zn(cpu, cpu->Y);
 }
 
 static void
-OP_JMP(r2A03 *cpu)
+OP_JMP(cpu *cpu)
 {
 	cpu->PC = cpu->addr;
 }
 
 static void
-OP_JSR(r2A03 *cpu)
+OP_JSR(cpu *cpu)
 {
 	push16(cpu, cpu->PC - 1);
 	cpu->PC = cpu->addr;
@@ -1055,28 +1055,28 @@ OP_JSR(r2A03 *cpu)
 }
 
 static void
-OP_LDA(r2A03 *cpu)
+OP_LDA(cpu *cpu)
 {
 	cpu->A = get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
-OP_LDX(r2A03 *cpu)
+OP_LDX(cpu *cpu)
 {
 	cpu->X = get8(cpu);
 	upd_zn(cpu, cpu->X);
 }
 
 static void
-OP_LDY(r2A03 *cpu)
+OP_LDY(cpu *cpu)
 {
 	cpu->Y = get8(cpu);
 	upd_zn(cpu, cpu->Y);
 }
 
 static void
-OP_LSR(r2A03 *cpu)
+OP_LSR(cpu *cpu)
 {
 	uint8_t val;
 
@@ -1095,7 +1095,7 @@ OP_LSR(r2A03 *cpu)
 }
 
 static void
-OP_NOP(r2A03 *cpu)
+OP_NOP(cpu *cpu)
 {
 	/*
 	 * The NOP instruction causes no changes to the processor
@@ -1109,40 +1109,40 @@ OP_NOP(r2A03 *cpu)
 }
 
 static void
-OP_ORA(r2A03 *cpu)
+OP_ORA(cpu *cpu)
 {
 	cpu->A |= get8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
-OP_PHA(r2A03 *cpu)
+OP_PHA(cpu *cpu)
 {
 	push8(cpu, cpu->A);
 }
 
 static void
-OP_PHP(r2A03 *cpu)
+OP_PHP(cpu *cpu)
 {
 	push8(cpu, cpu->P | MASK_BREAK | MASK_UNUSED);
 }
 
 static void
-OP_PLA(r2A03 *cpu)
+OP_PLA(cpu *cpu)
 {
 	cpu->A = pop8(cpu);
 	upd_zn(cpu, cpu->A);
 }
 
 static void
-OP_PLP(r2A03 *cpu)
+OP_PLP(cpu *cpu)
 {
 	cpu->P = pop8(cpu);
 	unset_b(cpu);
 }
 
 static void
-OP_ROL(r2A03 *cpu)
+OP_ROL(cpu *cpu)
 {
 	uint8_t carry = get_c(cpu);
 	uint8_t val;
@@ -1162,7 +1162,7 @@ OP_ROL(r2A03 *cpu)
 }
 
 static void
-OP_ROR(r2A03 *cpu)
+OP_ROR(cpu *cpu)
 {
 	uint8_t carry = get_c(cpu);
 	uint8_t val;
@@ -1182,7 +1182,7 @@ OP_ROR(r2A03 *cpu)
 }
 
 static void
-OP_RTI(r2A03 *cpu)
+OP_RTI(cpu *cpu)
 {
 	cpu->P = pop8(cpu);
 	cpu->PC = pop16(cpu);
@@ -1190,13 +1190,13 @@ OP_RTI(r2A03 *cpu)
 }
 
 static void
-OP_RTS(r2A03 *cpu)
+OP_RTS(cpu *cpu)
 {
 	cpu->PC = pop16(cpu) + 1;
 }
 
 static void
-OP_SBC(r2A03 *cpu)
+OP_SBC(cpu *cpu)
 {
 	uint8_t acc = cpu->A;
 	uint8_t val = get8(cpu);
@@ -1210,84 +1210,84 @@ OP_SBC(r2A03 *cpu)
 }
 
 static void
-OP_SEC(r2A03 *cpu)
+OP_SEC(cpu *cpu)
 {
 	set_c(cpu);
 }
 
 static void
-OP_SED(r2A03 *cpu)
+OP_SED(cpu *cpu)
 {
 	set_d(cpu);
 }
 
 static void
-OP_SEI(r2A03 *cpu)
+OP_SEI(cpu *cpu)
 {
 	set_i(cpu);
 }
 
 static void
-OP_STA(r2A03 *cpu)
+OP_STA(cpu *cpu)
 {
 	write8(cpu, cpu->A);
 }
 
 static void
-OP_STX(r2A03 *cpu)
+OP_STX(cpu *cpu)
 {
 	write8(cpu, cpu->X);
 }
 
 static void
-OP_STY(r2A03 *cpu)
+OP_STY(cpu *cpu)
 {
 	write8(cpu, cpu->Y);
 }
 
 static void
-OP_TAX(r2A03 *cpu)
+OP_TAX(cpu *cpu)
 {
 	cpu->X = cpu->A;
 	upd_zn(cpu, cpu->X);
 }
 
 static void
-OP_TAY(r2A03 *cpu)
+OP_TAY(cpu *cpu)
 {
 	cpu->Y = cpu->A;
 	upd_zn(cpu, cpu->Y);
 }
 
 static void
-OP_TSX(r2A03 *cpu)
+OP_TSX(cpu *cpu)
 {
 	cpu->X = cpu->SP;
 	upd_zn(cpu, cpu->X);
 }
 
 static void
-OP_TXA(r2A03 *cpu)
+OP_TXA(cpu *cpu)
 {
 	cpu->A = cpu->X;
 	upd_zn(cpu, cpu->A);
 }
 
 static void
-OP_TXS(r2A03 *cpu)
+OP_TXS(cpu *cpu)
 {
 	cpu->SP = cpu->X;
 }
 
 static void
-OP_TYA(r2A03 *cpu)
+OP_TYA(cpu *cpu)
 {
 	cpu->A = cpu->Y;
 	upd_zn(cpu, cpu->A);
 }
 
 static void
-OP_ALR(r2A03 *cpu)
+OP_ALR(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	cpu->A &= val;
@@ -1297,13 +1297,13 @@ OP_ALR(r2A03 *cpu)
 }
 
 static void
-OP_ANE(r2A03 *cpu)
+OP_ANE(cpu *cpu)
 {
 	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
-OP_ARR(r2A03 *cpu)
+OP_ARR(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	uint8_t carry = get_c(cpu);
@@ -1318,7 +1318,7 @@ OP_ARR(r2A03 *cpu)
 }
 
 static void
-OP_ANC(r2A03 *cpu)
+OP_ANC(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	cpu->A &= val;
@@ -1327,21 +1327,21 @@ OP_ANC(r2A03 *cpu)
 }
 
 static void
-OP_DCP(r2A03 *cpu)
+OP_DCP(cpu *cpu)
 {
 	OP_DEC(cpu);
 	OP_CMP(cpu);
 }
 
 static void
-OP_ISC(r2A03 *cpu)
+OP_ISC(cpu *cpu)
 {
 	OP_INC(cpu);
 	OP_SBC(cpu);
 }
 
 static void
-OP_LAS(r2A03 *cpu)
+OP_LAS(cpu *cpu)
 {
 	cpu->SP &= get8(cpu);
 	cpu->A = cpu->SP;
@@ -1350,7 +1350,7 @@ OP_LAS(r2A03 *cpu)
 }
 
 static void
-OP_LAX(r2A03 *cpu)
+OP_LAX(cpu *cpu)
 {
 	OP_LDA(cpu);
 	cpu->X = get8(cpu);
@@ -1358,33 +1358,33 @@ OP_LAX(r2A03 *cpu)
 }
 
 static void
-OP_LXA(r2A03 *cpu)
+OP_LXA(cpu *cpu)
 {
 	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
-OP_RLA(r2A03 *cpu)
+OP_RLA(cpu *cpu)
 {
 	OP_ROL(cpu);
 	OP_AND(cpu);
 }
 
 static void
-OP_RRA(r2A03 *cpu)
+OP_RRA(cpu *cpu)
 {
 	OP_ROR(cpu);
 	OP_ADC(cpu);
 }
 
 static void
-OP_SAX(r2A03 *cpu)
+OP_SAX(cpu *cpu)
 {
 	write8(cpu, cpu->A & cpu->X);
 }
 
 static void
-OP_SBX(r2A03 *cpu)
+OP_SBX(cpu *cpu)
 {
 	uint8_t val = get8(cpu);
 	uint8_t acc_with_x = cpu->A & cpu->X;
@@ -1396,45 +1396,45 @@ OP_SBX(r2A03 *cpu)
 }
 
 static void
-OP_SHA(r2A03 *cpu)
+OP_SHA(cpu *cpu)
 {
 	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
-OP_SHX(r2A03 *cpu)
+OP_SHX(cpu *cpu)
 {
 	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
-OP_SHY(r2A03 *cpu)
+OP_SHY(cpu *cpu)
 {
 	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
-OP_SLO(r2A03 *cpu)
+OP_SLO(cpu *cpu)
 {
 	OP_ASL(cpu);
 	OP_ORA(cpu);
 }
 
 static void
-OP_SRE(r2A03 *cpu)
+OP_SRE(cpu *cpu)
 {
 	OP_LSR(cpu);
 	OP_EOR(cpu);
 }
 
 static void
-OP_TAS(r2A03 *cpu)
+OP_TAS(cpu *cpu)
 {
 	(void)cpu; /* TODO: OPCODE */
 }
 
 static void
-OP_ILL(r2A03 *cpu)
+OP_ILL(cpu *cpu)
 {
 	(void)cpu;
 	fprintf(stderr, "illegal opcode!\n"); /* TODO: remove */
@@ -1442,7 +1442,7 @@ OP_ILL(r2A03 *cpu)
 }
 
 void
-cpu_reset(r2A03 *cpu, bus *bus)
+cpu_reset(cpu *cpu, bus *bus)
 {
 	cpu->bus = bus;
 	cpu->PC = get16_addr(cpu, VECTOR_RESET);
@@ -1454,7 +1454,7 @@ cpu_reset(r2A03 *cpu, bus *bus)
 }
 
 void
-cpu_tick(r2A03 *cpu)
+cpu_tick(cpu *cpu)
 {
 	cpu->total++;
 	cpu->stall--;
@@ -1473,25 +1473,25 @@ cpu_tick(r2A03 *cpu)
 }
 
 void
-cpu_trigger_nmi(r2A03 *cpu)
+cpu_trigger_nmi(cpu *cpu)
 {
 	cpu->nmi = 1;
 }
 
 uint64_t
-cpu_get_total_cycles(r2A03 *cpu)
+cpu_get_total_cycles(cpu *cpu)
 {
 	return cpu->total;
 }
 
 void
-cpu_set_stall_cycles(r2A03 *cpu, uint64_t cycles)
+cpu_set_stall_cycles(cpu *cpu, uint64_t cycles)
 {
 	cpu->stall = cycles;
 }
 
 static disassemble_arg
-disassemble_get_arg(r2A03 *cpu, addr_mode amode)
+disassemble_get_arg(cpu *cpu, addr_mode amode)
 {
 	disassemble_arg arg = {0};
 	uint16_t curr_pc = cpu->PC + 1;
@@ -1536,7 +1536,7 @@ disassemble_get_arg(r2A03 *cpu, addr_mode amode)
 #define ASM_STR_SIZE 25
 
 static void
-disassemble_compose_asm_str(r2A03 *cpu, uint8_t opcode, char strbuf[])
+disassemble_compose_asm_str(cpu *cpu, uint8_t opcode, char strbuf[])
 {
 	char *curr = strbuf;
 	char *end = strbuf + ASM_STR_SIZE;
@@ -1558,7 +1558,7 @@ disassemble_compose_asm_str(r2A03 *cpu, uint8_t opcode, char strbuf[])
  * https://github.com/christopherpow/nes-test-roms/blob/master/other/nestest.log
  */
 static void
-disassemble(r2A03 *cpu)
+disassemble(cpu *cpu)
 {
 	uint8_t opcode = get8_addr(cpu, cpu->PC);
 	char asm_str[ASM_STR_SIZE];

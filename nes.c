@@ -12,7 +12,7 @@
 typedef struct {
 	/* r2A03 apu */
 	bus bus;
-	r2A03 cpu;
+	cpu cpu;
 	r2C02 ppu;
 	cartrige rom;
 	controller controller;
