@@ -8,6 +8,7 @@
 typedef struct {
 	uint8_t *prg; /* code section */
 	uint8_t *chr; /* graphics section */
+	uint8_t *prg_ram;
 	uint8_t prg_size;
 	uint8_t chr_size;
 	mirroring_type mirroring;
@@ -17,7 +18,7 @@ typedef struct {
 
 cartrige cartrige_create(const char *);
 void cartrige_free(cartrige *);
-uint8_t cartrige_get_mirroring(const cartrige *);
+mirroring_type cartrige_get_mirroring(const cartrige *);
 uint8_t cartrige_read(const cartrige *, uint16_t);
 void cartrige_write(cartrige *, uint16_t, uint8_t);
 
