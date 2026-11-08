@@ -3,14 +3,13 @@
 #include <stdlib.h>
 
 #include "bus.h"
-#include "controller.h"
 #include "gfx.h"
 
 
 #define RAM_SIZE 0x10000
 
 typedef struct {
-	/* r2A03 apu */
+	apu apu;
 	bus bus;
 	cpu cpu;
 	ppu ppu;
@@ -36,7 +35,7 @@ nes_loadrom(nes *n, const char *path)
 static void
 nes_tick(nes *n)
 {
-	/* bus_apu_tick(&n->bus); */
+	bus_apu_tick(&n->bus);
 	bus_cpu_tick(&n->bus);
 
 	bus_ppu_tick(&n->bus);
@@ -75,7 +74,8 @@ nes_runloop(nes *n)
 static void
 nes_init(nes *n)
 {
-	bus_init(&n->bus, &n->cpu, &n->ppu, n->ram, &n->controller, n->rom);
+	bus_init(&n->bus, &n->apu, &n->cpu, &n->ppu, n->ram, &n->controller, n->rom);
+	bus_apu_reset(&n->bus);
 	bus_cpu_reset(&n->bus);
 	bus_ppu_reset(&n->bus);
 	gfx_init(); // TODO: create layer for holding array

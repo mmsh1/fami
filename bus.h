@@ -1,14 +1,14 @@
 #ifndef NES_BUS_H
 #define NES_BUS_H
 
-#include <stdint.h>
-
+#include "apu.h"
 #include "cartrige.h"
 #include "controller.h"
 #include "cpu.h"
 #include "ppu.h"
 
 typedef struct bus {
+	apu *apu;
 	cpu *cpu;
 	ppu *ppu;
 	uint8_t *ram;
@@ -16,7 +16,7 @@ typedef struct bus {
 	cartrige rom; /* TODO: use pointer? */
 } bus;
 
-void bus_init(bus *, cpu *, ppu *, uint8_t *, controller *, cartrige);
+void bus_init(bus *, apu *, cpu *, ppu *, uint8_t *, controller *, cartrige);
 
 void bus_apu_reset(bus *);
 void bus_apu_tick(bus *);
