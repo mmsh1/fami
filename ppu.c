@@ -166,7 +166,7 @@ set_pixel(ppu *ppu, int x, int y, uint32_t color)
 	uint8_t a = color & 0xFF;
 	uint32_t rgba = (a << 24) | (b << 16) | (g << 8) | r;
 
-	ppu->frame_buf[x + y * 256] = rgba;
+	ppu->frame_buffer[x + y * 256] = rgba;
 }
 
 static inline uint8_t

@@ -81,7 +81,7 @@ typedef struct {
 	int sprite_zero_index;
 
 	uint8_t palette[0x20];
-	uint32_t frame_buf[SCREEN_WIDTH * SCREEN_HEIGHT];
+	uint32_t frame_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 	struct {
 		uint16_t tile_lo;
