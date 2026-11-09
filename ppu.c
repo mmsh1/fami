@@ -1,3 +1,4 @@
+#include "bus.h"
 #include "ines.h"
 #include "ppu.h"
 

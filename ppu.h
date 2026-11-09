@@ -19,17 +19,7 @@ enum {
 	SCREEN_HEIGHT = 240
 };
 
-/* NOTE: to use these functions we have to import bus.h
- * But we can't do it due to circular include (they will include each other).
- * Therefore, we are using forward declaration. */
-struct bus;
-uint8_t bus_cartrige_read(struct bus *, uint16_t);
-void bus_cartrige_write(struct bus *, uint16_t, uint8_t);
-uint8_t bus_cartrige_get_mirroring(struct bus *);
-void bus_cpu_trigger_nmi(struct bus *);
-uint64_t bus_cpu_get_total_cycles(struct bus *);
-void bus_cpu_set_stall_cycles(struct bus *, uint64_t);
-uint8_t bus_read(struct bus *, uint16_t);
+struct bus; /* NOTE: to avoid circular include */
 
 typedef struct {
 	uint8_t pos_y;
