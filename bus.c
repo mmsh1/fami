@@ -1,5 +1,3 @@
-#include <stdio.h>  /* TODO: remove */
-
 #include "bus.h"
 
 void
@@ -43,10 +41,28 @@ bus_cartrige_write(bus *b, uint16_t addr, uint8_t val)
 	cartrige_write(&b->rom, addr, val);
 }
 
+uint64_t
+bus_cpu_get_total_cycles(bus *b)
+{
+	return cpu_get_total_cycles(b->cpu);
+}
+
 void
 bus_cpu_reset(bus *b)
 {
 	cpu_reset(b->cpu, b);
+}
+
+void
+bus_cpu_set_irq(bus *b, uint8_t asserted)
+{
+	cpu_set_irq(b->cpu, asserted);
+}
+
+void
+bus_cpu_set_stall_cycles(bus *b, uint64_t cycles)
+{
+	cpu_set_stall_cycles(b->cpu, cycles);
 }
 
 void
@@ -59,18 +75,6 @@ void
 bus_cpu_trigger_nmi(bus *b)
 {
 	cpu_trigger_nmi(b->cpu);
-}
-
-uint64_t
-bus_cpu_get_total_cycles(bus *b)
-{
-	return cpu_get_total_cycles(b->cpu);
-}
-
-void
-bus_cpu_set_stall_cycles(bus *b, uint64_t cycles)
-{
-	cpu_set_stall_cycles(b->cpu, cycles);
 }
 
 uint8_t

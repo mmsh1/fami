@@ -47,6 +47,7 @@ typedef union {
 
 static inline uint8_t getflag(cpu *, uint8_t);
 static inline uint8_t get_c(cpu *);
+static inline uint8_t get_i(cpu *);
 static inline uint8_t get_z(cpu *);
 static inline uint8_t get_v(cpu *);
 static inline uint8_t get_n(cpu *);
@@ -473,6 +474,7 @@ optable[0xFF + 1] = {
 
 static inline uint8_t getflag(cpu *cpu, uint8_t mask) { return cpu->P & mask; }
 static inline uint8_t get_c(cpu *cpu)                 { return getflag(cpu, MASK_CARRY); }
+static inline uint8_t get_i(cpu *cpu)                 { return getflag(cpu, MASK_INTERRUPT_DISABLE); }
 static inline uint8_t get_n(cpu *cpu)                 { return getflag(cpu, MASK_NEGATIVE); }
 static inline uint8_t get_v(cpu *cpu)                 { return getflag(cpu, MASK_OVERFLOW); }
 static inline uint8_t get_z(cpu *cpu)                 { return getflag(cpu, MASK_ZERO); }
@@ -683,9 +685,9 @@ poll_interrupts(cpu *cpu)
 		return;
 	}
 
-	if (cpu->irq) {
+	if (cpu->irq && !get_i(cpu)) {
 		handle_irq(cpu);
-		cpu->irq = 0;
+		/* TODO: cpu->irq = 0;*/
 		return;
 	}
 }
@@ -1441,6 +1443,12 @@ OP_ILL(cpu *cpu)
 	return;
 }
 
+uint64_t
+cpu_get_total_cycles(cpu *cpu)
+{
+	return cpu->total;
+}
+
 void
 cpu_reset(cpu *cpu, bus *bus)
 {
@@ -1450,7 +1458,18 @@ cpu_reset(cpu *cpu, bus *bus)
 	cpu->P = 0x24;
 
 	cpu->stall = 7; /* because of interrupt? TODO: check */
-	cpu->total = 0;
+}
+
+void
+cpu_set_irq(cpu *cpu, uint8_t asserted)
+{
+	cpu->irq = asserted != 0;
+}
+
+void
+cpu_set_stall_cycles(cpu *cpu, uint64_t cycles)
+{
+	cpu->stall = cycles;
 }
 
 void
@@ -1476,18 +1495,6 @@ void
 cpu_trigger_nmi(cpu *cpu)
 {
 	cpu->nmi = 1;
-}
-
-uint64_t
-cpu_get_total_cycles(cpu *cpu)
-{
-	return cpu->total;
-}
-
-void
-cpu_set_stall_cycles(cpu *cpu, uint64_t cycles)
-{
-	cpu->stall = cycles;
 }
 
 static disassemble_arg

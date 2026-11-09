@@ -23,10 +23,11 @@ typedef struct {
 	struct bus *bus;
 } cpu;
 
+uint64_t cpu_get_total_cycles(cpu *);
 void cpu_reset(cpu *, struct bus *);
+void cpu_set_irq(cpu *, uint8_t);
+void cpu_set_stall_cycles(cpu *, uint64_t);
 void cpu_tick(cpu *);
 void cpu_trigger_nmi(cpu *);
-uint64_t cpu_get_total_cycles(cpu *);
-void cpu_set_stall_cycles(cpu *, uint64_t);
 
 #endif /* NES_CPU_H */
