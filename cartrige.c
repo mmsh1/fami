@@ -39,13 +39,13 @@ get_addr_offset(uint8_t prg_size)
 }
 
 static uint8_t*
-load_block(size_t size)
+load_block(uint64_t size)
 {
 	return calloc(1, size);
 }
 
 static uint8_t*
-load_block_from_file(FILE *rom, size_t size)
+load_block_from_file(FILE *rom, uint64_t size)
 {
 	uint8_t *block = load_block(size);
 	if (block == NULL) {
@@ -63,8 +63,8 @@ load_block_from_file(FILE *rom, size_t size)
 static int
 cartrige_load_payload(FILE *rom, cartrige *c, const struct ines_header *h)
 {
-	size_t prg_bytes = (size_t)h->prg_rom_size * PRG_ROM_BANK_SIZE;
-	size_t chr_bytes = h->chr_rom_size ? (size_t)h->chr_rom_size * CHR_ROM_BANK_SIZE : CHR_RAM_BANK_SIZE;
+	uint64_t prg_bytes = (uint64_t)h->prg_rom_size * PRG_ROM_BANK_SIZE;
+	uint64_t chr_bytes = h->chr_rom_size ? (uint64_t)h->chr_rom_size * CHR_ROM_BANK_SIZE : CHR_RAM_BANK_SIZE;
 
 	c->prg = NULL;
 	c->prg_ram = NULL;
