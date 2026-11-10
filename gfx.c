@@ -20,10 +20,8 @@ gfx_draw_frame(const uint32_t *frame_buf)
 	EndTextureMode();
 
 	BeginDrawing();
-		//DrawTexture(viewport.texture, 0, 0, WHITE);
 		DrawTexturePro(viewport.texture,
 			(Rectangle){ 0, 0, (float)viewport.texture.width, (float)viewport.texture.height },
-			//(Rectangle){ 0, 0, 256 * 2, 240 * 2 },
 			(Rectangle){ 0, 0, 256 * 3, 240 * 3 },
 			(Vector2){ 0, 0 },
 			0.0f,
@@ -36,10 +34,9 @@ void
 gfx_init()
 {
 	SetTraceLogLevel(LOG_NONE);
-	//InitWindow(256, 240, "");
-	//viewport = LoadRenderTexture(256, 240);
-	//InitWindow(256 * 2, 240 * 2, "");
 	InitWindow(256 * 3, 240 * 3, "");
+	SetTargetFPS(60);
+
 	viewport = LoadRenderTexture(256, 240);
 	SetTextureFilter(viewport.texture, TEXTURE_FILTER_POINT);
 }
