@@ -1,5 +1,5 @@
-CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3 -Wconversion
-LIBS = lib/libraylib.a -lm
+CFLAGS = -Wall -Wextra -std=c99 -pedantic -g3 -Wconversion -pthread
+LIBS = lib/libraylib.a -lm -lpthread
 #-Werror
 
 all: options fami
@@ -12,7 +12,7 @@ options:
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-fami: apu.o bus.o cartrige.o controller.o cpu.o gfx.o ines.o nes.o ppu.o
+fami: apu.o audio.o bus.o cartrige.o controller.o cpu.o gfx.o ines.o nes.o ppu.o
 	$(CC) -o $@ $^ $(LIBS) -fsanitize=address -fsanitize=undefined
 
 test: cpu_test.o

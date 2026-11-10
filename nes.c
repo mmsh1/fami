@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "audio.h"
 #include "bus.h"
 #include "gfx.h"
-
 
 #define RAM_SIZE 0x10000
 
@@ -22,6 +22,7 @@ static void
 nes_cleanup(nes *n)
 {
 	cartrige_free(&n->rom);
+	audio_destroy();
 	gfx_destroy();
 }
 
@@ -56,7 +57,10 @@ nes_draw(nes *n)
 
 	if (flag) {
 		bus_ppu_unset_frame_ready_flag(&n->bus);
-		gfx_draw_frame(n->ppu.frame_buf);
+		gfx_draw_frame(n->ppu.frame_buffer);
+
+		audio_write(n->apu.audio_buffer, n->apu.audio_buffer_length);
+		n->apu.audio_buffer_length = 0;
 	}
 }
 
@@ -78,7 +82,8 @@ nes_init(nes *n)
 	bus_apu_reset(&n->bus);
 	bus_cpu_reset(&n->bus);
 	bus_ppu_reset(&n->bus);
-	gfx_init(); // TODO: create layer for holding array
+	gfx_init();
+	audio_init(APU_SAMPLE_RATE);
 }
 
 int
