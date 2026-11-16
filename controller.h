@@ -18,9 +18,12 @@ typedef struct {
 	uint8_t buttons;
 	uint8_t shift;
 	uint8_t latch;
+
+	uint64_t last_read_cycle;
+	uint8_t last_read_valid;
 } controller;
 
-uint8_t controller_read(controller *);
+uint8_t controller_read(controller *, uint64_t);
 void controller_write(controller *, uint8_t);
 
 #endif /* NES_CONTROLLER_H */

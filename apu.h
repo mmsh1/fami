@@ -82,6 +82,7 @@ typedef struct {
 	uint8_t five_step_mode;
 	uint8_t frame_irq_inhibit;
 	uint8_t frame_irq;
+	uint8_t frame_irq_clear_pending;
 
 	uint8_t frame_write_pending;
 	uint8_t frame_write_delay;

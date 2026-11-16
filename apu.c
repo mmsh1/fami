@@ -97,7 +97,7 @@ apu_sample_tick(apu *apu)
 static void
 apu_update_irq(apu *apu)
 {
-	bus_cpu_set_irq(apu->bus, apu->frame_irq);
+	bus_cpu_set_irq(apu->bus, apu->frame_irq && !apu->frame_irq_inhibit);
 }
 
 static void
@@ -110,6 +110,7 @@ apu_write_frame_counter(apu *apu, uint8_t val)
 
 	if (apu->frame_irq_inhibit) {
 		apu->frame_irq = 0;
+		apu->frame_irq_clear_pending = 0;
 	}
 
 	apu_update_irq(apu);
@@ -203,21 +204,15 @@ frame_counter_tick(apu *apu)
 			half_frame_clock(apu);
 			break;
 		case 29828:
-			if (!apu->frame_irq_inhibit) {
-				apu->frame_irq = 1;
-			}
+			apu->frame_irq = 1;
 			break;
 		case 29829:
 			quarter_frame_clock(apu);
 			half_frame_clock(apu);
-			if (!apu->frame_irq_inhibit) {
-				apu->frame_irq = 1;
-			}
+			apu->frame_irq = 1;
 			break;
 		case 29830:
-			if (!apu->frame_irq_inhibit) {
-				apu->frame_irq = 1;
-			}
+			apu->frame_irq = !apu->frame_irq_inhibit;
 			apu->frame_cycle = 0;
 			break;
 		default:
@@ -491,6 +486,11 @@ apu_tick(apu *apu)
 
 	apu->cycle++;
 
+	if ((apu->cycle & 1) && apu->frame_irq_clear_pending) {
+		apu->frame_irq_clear_pending = 0;
+		apu->frame_irq = 0;
+	}
+
 	triangle_tick(&apu->triangle);
 	noise_tick(&apu->noise);
 
@@ -521,8 +521,7 @@ apu_read(apu *apu, uint16_t addr)
 	if (apu->noise.length.value > 0) { status |= 0x08; }
 	if (apu->frame_irq) { status |= 0x40; }
 	
-	apu->frame_irq = 0;
-	apu_update_irq(apu);
+	apu->frame_irq_clear_pending = 1;
 	return status;
 }
 
