@@ -108,7 +108,7 @@ bus_read(bus *b, uint16_t addr)
 	if (addr < 0x4000) { return ppu_read(b->ppu, 0x2000 + addr % 8); } /* TODO: create func for composing addr */
 	if (addr == 0x4014) { return 0; }
 	if (addr == 0x4015) { return apu_read(b->apu, addr)  | (b->cpu->open_bus & 0x20); }
-	if (addr == 0x4016) { return controller_read(b->controller, bus_cpu_get_total_cycles(b)) & 0x1F | (b->cpu->open_bus & 0xE0); }
+	if (addr == 0x4016) { return (controller_read(b->controller, bus_cpu_get_total_cycles(b)) & 0x1F) | (b->cpu->open_bus & 0xE0); } /* TODO: wrap */
 	if (addr == 0x4017) { return b->cpu->open_bus; }
 	if (addr >= 0x6000) { return bus_cartrige_read(b, addr); }
 	return b->cpu->open_bus;

@@ -322,9 +322,7 @@ sprite_pixel_color(ppu *ppu, int i, int x)
 static uint8_t
 get_fg_pixel_addr(ppu *ppu)
 {
-	uint8_t bit_hi, bit_lo, color;
-	uint8_t sprite_x;
-	uint8_t pixel_in_sprite;
+	uint8_t color;
 	uint16_t palette;
 	int x = ppu->cycle - 1;
 	int i;
@@ -591,7 +589,7 @@ static uint16_t
 get_sprite_addr(ppu *ppu, sprite sprite)
 {
 	int sprite_height = get_sprites_height(ppu->ppu_ctrl);
-	uint8_t y_pos = ppu->scanline - sprite.pos_y;
+	uint8_t y_pos = (uint8_t)ppu->scanline - sprite.pos_y;
 	uint16_t tile_idx = sprite.tile_idx;
 	uint16_t pattern_table;
 

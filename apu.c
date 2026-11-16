@@ -528,9 +528,6 @@ apu_read(apu *apu, uint16_t addr)
 void
 apu_write(apu *apu, uint16_t addr, uint8_t val)
 {
-	uint8_t enabled;
-	unsigned int i;
-	
 	switch (addr) {
 		case 0x4000:
 		case 0x4001:

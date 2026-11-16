@@ -1053,7 +1053,7 @@ OP_JSR(cpu *cpu)
 {
 	push16(cpu, cpu->PC - 1);
 	cpu->PC = cpu->addr;
-	cpu->open_bus = cpu->addr >> 8;
+	cpu->open_bus = (uint8_t)(cpu->addr >> 8);
 }
 
 static void
