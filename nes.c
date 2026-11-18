@@ -82,7 +82,7 @@ nes_runloop(nes *n)
 static void
 nes_init(nes *n)
 {
-	bus_init(&n->bus, &n->apu, &n->cpu, &n->ppu, n->ram, &n->controller, n->rom);
+	bus_init(&n->bus, &n->apu, &n->cpu, &n->ppu, n->ram, &n->controller, &n->rom);
 	bus_apu_reset(&n->bus);
 	bus_cpu_reset(&n->bus);
 	bus_ppu_reset(&n->bus);

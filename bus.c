@@ -1,7 +1,7 @@
 #include "bus.h"
 
 void
-bus_init(bus *bus, apu *apu, cpu *cpu, ppu *ppu, uint8_t *ram, controller *controller, cartrige rom)
+bus_init(bus *bus, apu *apu, cpu *cpu, ppu *ppu, uint8_t *ram, controller *controller, cartrige *rom)
 {
 	bus->apu = apu;
 	bus->cpu = cpu;
@@ -26,19 +26,19 @@ bus_apu_tick(bus *b)
 uint8_t
 bus_cartrige_get_mirroring(bus *b)
 {
-	return cartrige_get_mirroring(&b->rom);
+	return cartrige_get_mirroring(b->rom);
 }
 
 uint8_t
 bus_cartrige_read(bus *b, uint16_t addr)
 {
-	return cartrige_read(&b->rom, addr);
+	return cartrige_read(b->rom, addr);
 }
 
 void
 bus_cartrige_write(bus *b, uint16_t addr, uint8_t val)
 {
-	cartrige_write(&b->rom, addr, val);
+	cartrige_write(b->rom, addr, val);
 }
 
 uint64_t
@@ -110,7 +110,7 @@ bus_read(bus *b, uint16_t addr)
 	if (addr == 0x4015) { return apu_read(b->apu, addr)  | (b->cpu->open_bus & 0x20); }
 	if (addr == 0x4016) { return (controller_read(b->controller, bus_cpu_get_total_cycles(b)) & 0x1F) | (b->cpu->open_bus & 0xE0); } /* TODO: wrap */
 	if (addr == 0x4017) { return b->cpu->open_bus; }
-	if (addr >= 0x6000) { return bus_cartrige_read(b, addr); }
+	if (addr >= 0x6000) { return cartrige_read(b->rom, addr); }
 	return b->cpu->open_bus;
 }
 
@@ -126,5 +126,5 @@ bus_write(bus *b, uint16_t addr, uint8_t val)
 	else if (addr == 0x4015) { apu_write(b->apu, addr, val); }
 	else if (addr == 0x4016) { controller_write(b->controller, val); }
 	else if (addr == 0x4017) { apu_write(b->apu, addr, val); }
-	else if (addr >= 0x6000) { cartrige_write(&b->rom, addr, val); }
+	else if (addr >= 0x6000) { cartrige_write(b->rom, addr, val); }
 }
