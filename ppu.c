@@ -736,7 +736,7 @@ fetch_hi_tile(ppu *ppu)
 	ppu->next_tile.tile_hi = vram_data_read(ppu, addr + 8);
 }
 
-uint8_t
+int
 ppu_get_frame_ready_flag(ppu *ppu)
 {
 	return ppu->frame_ready_flag;

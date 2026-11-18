@@ -57,7 +57,7 @@ nes_should_exit()
 static void
 nes_draw(nes *n)
 {
-	uint8_t flag = bus_ppu_get_frame_ready_flag(&n->bus);
+	int flag = bus_ppu_get_frame_ready_flag(&n->bus);
 
 	if (flag) {
 		bus_ppu_unset_frame_ready_flag(&n->bus);

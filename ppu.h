@@ -57,7 +57,6 @@ typedef struct {
 	uint8_t ppu_status;
 	uint8_t oam_addr;
 
-	uint8_t frame_ready_flag;
 	uint8_t read_buffer;
 	uint8_t vram[VRAM_SIZE];
 	uint8_t io_bus;
@@ -79,6 +78,7 @@ typedef struct {
 	int frame;
 	int active_sprites;
 	int sprite_zero_index;
+	int frame_ready_flag;
 
 	uint8_t palette[0x20];
 	uint32_t frame_buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
@@ -104,7 +104,7 @@ typedef struct {
 	uint64_t total_cycles; /* TODO: remove! */
 } ppu;
 
-uint8_t ppu_get_frame_ready_flag(ppu *);
+int ppu_get_frame_ready_flag(ppu *);
 void ppu_unset_frame_ready_flag(ppu *);
 void ppu_reset(ppu *, struct bus *);
 void ppu_tick(ppu *);
