@@ -4,6 +4,8 @@
 
 #include "cartrige.h"
 #include "ines.h"
+#include "mapper0.h"
+#include "mapper1.h"
 
 enum {
 	PRG_ROM_BANK_SIZE = 0x4000,
@@ -11,31 +13,52 @@ enum {
 	CHR_RAM_BANK_SIZE = 0x2000,
 };
 
-static inline mirroring_type
-get_mirroring_type(uint8_t ctl)
-{
-	mirroring_type mt = ctl & 0x1;
+enum {
+	MAPPER_NROM = 0,
+	MAPPER_MMC1 = 1,
+	MAPPER_UXROM = 2,
+	MAPPER_CNROM = 3,
+	MAPPER_MMC3 = 4,
+	MAPPER_AXROM = 7,
+	MAPPER_MMC2 = 9
+};
 
-	switch (mt) {
-		case 0x0:
-			return HORIZONTAL_MIRRORING;
-		case 0x1:
-			return VERTICAL_MIRRORING;
-		case 0x4:
-			return 0;
-		/* TODO: */
-		default:
-			return INVALID_MIRRORING;
+static inline mirroring_type
+get_mirroring_type(uint8_t flags6)
+{
+	if (flags6 & ALT_LAYOUT_MASK) {
+		return FOUR_SCREEN;
 	}
+	if (flags6 & MIRRORING_MASK) {
+		return VERTICAL_MIRRORING;
+	}
+	return HORIZONTAL_MIRRORING;
 }
 
-static inline uint16_t
-get_addr_offset(uint8_t prg_size)
+static int
+apply_header(cartrige *c, struct ines_header *header)
 {
-	if (prg_size > 1) {
-		return 0x7FFF;
+	c->mirroring = get_mirroring_type(header->flags6);
+	if (c->mirroring == INVALID_MIRRORING) {
+		return -1;
 	}
-	return 0x3FFF;
+	c->prg_size = header->prg_rom_size;
+	c->chr_size = header->chr_rom_size;
+	c->mapper_id = (header->flags6 >> 4) | (header->flags7 & 0xF0);
+	return 0;
+}
+
+static int
+init_mapper(cartrige *c)
+{
+	switch (c->mapper_id) {
+	case MAPPER_NROM:
+		mapper0_init(&c->mapper_state.m0, c->prg, c->chr, c->prg_ram, c->prg_size, c->chr_size);
+		return 0;
+	default:
+		fprintf(stderr, "ERROR: UNSUPPORTED MAPPER: %d\n", c->mapper_id);
+		return -1;
+	}
 }
 
 static uint8_t*
@@ -51,35 +74,29 @@ load_block_from_file(FILE *rom, uint64_t size)
 	if (block == NULL) {
 		return NULL;
 	}
-
 	if (fread(block, 1, size, rom) != size) {
 		free(block);
 		return NULL;
 	}
-
 	return block;
 }
 
 static int
-cartrige_load_payload(FILE *rom, cartrige *c, const struct ines_header *h)
+load_payload(FILE *rom, cartrige *c, const struct ines_header *h)
 {
 	uint64_t prg_bytes = (uint64_t)h->prg_rom_size * PRG_ROM_BANK_SIZE;
 	uint64_t chr_bytes = h->chr_rom_size ? (uint64_t)h->chr_rom_size * CHR_ROM_BANK_SIZE : CHR_RAM_BANK_SIZE;
 
-	c->prg = NULL;
-	c->prg_ram = NULL;
-	c->chr = NULL;
-
 	c->prg = load_block_from_file(rom, prg_bytes);
 	if (c->prg == NULL) {
 		fprintf(stderr, "ERROR: PRG ALLOCATION FAILED!\n");
-		goto read_err;
+		return -1;
 	}
 
 	c->prg_ram = load_block(0x2000);
 	if (c->prg_ram == NULL) {
 		fprintf(stderr, "ERROR: PRG_RAM ALLOCATION FAILED!\n");
-		goto read_err;
+		return -1;
 	}
 
 	if (h->chr_rom_size != 0) {
@@ -90,21 +107,22 @@ cartrige_load_payload(FILE *rom, cartrige *c, const struct ines_header *h)
 
 	if (c->chr == NULL) {
 		fprintf(stderr, "ERROR: CHR ALLOCATION FAILED!\n");
-		goto read_err;
+		return -1;
 	}
 
 	return 0;
+}
 
-read_err:
-	free(c->chr);
-	free(c->prg_ram);
-	free(c->prg);
-
-	c->prg = NULL;
-	c->prg_ram = NULL;
-	c->chr = NULL;
-
-	return -1;
+static int
+read_ines_header(FILE *rom, struct ines_header *header)
+{
+	if (fread(header, 1, sizeof(*header), rom) != sizeof(*header)) {
+		return -1;
+	}
+	if (!is_valid_ines_tag(header->magic)) {
+		return -1;
+	}
+	return 0;
 }
 
 cartrige
@@ -119,24 +137,29 @@ cartrige_create(const char *path)
 		return c;
 	}
 
-	if (fread(&header, 1, sizeof(struct ines_header), rom) != sizeof(struct ines_header) || !is_valid_ines_tag(header.magic)) {
-		goto done;
+	if (read_ines_header(rom, &header) != 0) {
+		fprintf(stderr, "ERROR: INVALID INES HEADER!\n");
+		goto fail;
 	}
 
-	c.mirroring = get_mirroring_type(header.flags6);
-	if (c.mirroring == INVALID_MIRRORING) {
-		goto done;
+	if (apply_header(&c, &header) != 0) {
+		goto fail;
 	}
 
-	if (cartrige_load_payload(rom, &c, &header) != 0) {
-		c.invalid = 1;
-		goto done;
+	if (load_payload(rom, &c, &header) != 0) {
+		goto fail;
 	}
 
-	c.prg_size = header.prg_rom_size;
-	c.chr_size = header.chr_rom_size;
-	c.mapper = (header.flags6 >> 4) | (header.flags7 & 0xF0);
+	if (init_mapper(&c) != 0) {
+		goto fail;
+	}
+
 	c.invalid = 0;
+	fprintf(stderr, "MAPPER: %d\n", c.mapper_id);
+	goto done;
+
+fail:
+	cartrige_free(&c);
 
 done:
 	fclose(rom);
@@ -152,41 +175,37 @@ cartrige_get_mirroring(const cartrige *c)
 uint8_t
 cartrige_read(const cartrige *c, uint16_t addr)
 {
-	/* TODO: this is implementation only for mapper 0.
-	* Other mappers will have different implementation
-	* */
-	if (addr <= 0x1FFF) {
-		return c->chr[addr];
-	}
-
-	if (addr >= 0x6000 && addr < 0x8000) {
-		if (c->prg_ram != NULL) {
-			return c->prg_ram[addr - 0x6000];
-		}
+	switch (c->mapper_id) {
+	case MAPPER_NROM:
+		return mapper0_read(&c->mapper_state.m0, addr);
+	case MAPPER_MMC1:
+	case MAPPER_UXROM:
+	case MAPPER_CNROM:
+	case MAPPER_MMC3:
+	case MAPPER_AXROM:
+	case MAPPER_MMC2:
+	default:
+		fprintf(stderr, "UNIMPLEMENTED MAPPER READ!\n"); /* TODO: remove */
 		return 0;
 	}
-
-	if (addr >= 0x8000) {
-		addr &= get_addr_offset(c->prg_size);
-		return c->prg[addr];
-	}
-
-	return 0;
 }
 
 void
 cartrige_write(cartrige *c, uint16_t addr, uint8_t val)
 {
-	/* TODO: this is implementation only for mapper 0.
-	* Other mappers will have different implementation
-	* */
-	if (addr >= 0x6000 && addr < 0x8000) {
-		if (c->prg_ram != NULL) {
-			c->prg_ram[addr - 0x6000] = val;
-		}
-	}
-	if (addr >= 0x8000) {
-		return;
+	switch (c->mapper_id) {
+	case MAPPER_NROM:
+		mapper0_write(&c->mapper_state.m0, addr, val);
+		break;
+	case MAPPER_MMC1:
+	case MAPPER_UXROM:
+	case MAPPER_CNROM:
+	case MAPPER_MMC3:
+	case MAPPER_AXROM:
+	case MAPPER_MMC2:
+	default:
+		fprintf(stderr, "UNIMPLEMENTED MAPPER WRITE!\n"); /* TODO: remove */
+		break;
 	}
 }
 
@@ -196,4 +215,8 @@ cartrige_free(cartrige *c)
 	free(c->prg);
 	free(c->chr);
 	free(c->prg_ram);
+
+	c->prg = NULL;
+	c->chr = NULL;
+	c->prg_ram = NULL;
 }

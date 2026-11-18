@@ -26,11 +26,15 @@ nes_cleanup(nes *n)
 	gfx_destroy();
 }
 
-static void
+static int
 nes_loadrom(nes *n, const char *path)
 {
 	n->rom = cartrige_create(path);
-	// TODO: handle invalid result
+	if (n->rom.invalid) {
+		fprintf(stderr, "ERROR: INVALID CARTRIGE!\n");
+		return -1;
+	}
+	return 0;
 }
 
 static void
@@ -96,7 +100,10 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	nes_loadrom(&n, argv[1]);
+	if (nes_loadrom(&n, argv[1]) != 0) {
+		exit(EXIT_FAILURE);
+	}
+
 	nes_init(&n);
 	nes_runloop(&n);
 	nes_cleanup(&n);
