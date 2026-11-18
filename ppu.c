@@ -189,18 +189,18 @@ mirror_nametable_addr(ppu *ppu, uint16_t addr)
 {
 	mirroring_type mt = bus_cartrige_get_mirroring(ppu->bus);
 	switch (mt) {
-		case HORIZONTAL_MIRRORING:
-			addr = ((addr / 2) & 0x400) + (addr % 0x400);
-			break;
-		case VERTICAL_MIRRORING:
-			addr %= 0x800;
-			break;
-		case SINGLE_SCREEN_A:
-		case SINGLE_SCREEN_B:
-		case FOUR_SCREEN:
-		case INVALID_MIRRORING: // TODO:
-		default:
-			addr -= 0x2000;
+	case HORIZONTAL_MIRRORING:
+		addr = ((addr / 2) & 0x400) + (addr % 0x400);
+		break;
+	case VERTICAL_MIRRORING:
+		addr %= 0x800;
+		break;
+	case SINGLE_SCREEN_A:
+	case SINGLE_SCREEN_B:
+	case FOUR_SCREEN:
+	case INVALID_MIRRORING: // TODO:
+	default:
+		addr -= 0x2000;
 	}
 
 	return addr;
@@ -224,11 +224,11 @@ static inline uint16_t
 palette_index(uint16_t addr)
 {
 	switch (addr) {
-		case 0x3F10:
-		case 0x3F14:
-		case 0x3F18:
-		case 0x3F1C:
-			addr -= 0x10;
+	case 0x3F10:
+	case 0x3F14:
+	case 0x3F18:
+	case 0x3F1C:
+		addr -= 0x10;
 	}
 	addr -= 0x3F00;
 	addr %= 0x20;
@@ -693,16 +693,16 @@ update_y_scroll(ppu *ppu)
 		loopy_set_fine_y(&ppu->vram_reg.curr_addr, 0);
 
 		switch (coarse_y) {
-			case 29:
-				loopy_set_coarse_y(&ppu->vram_reg.curr_addr, 0);
-				loopy_toggle_nametable_y(&ppu->vram_reg.curr_addr);
-				break;
-			case 31:
-				loopy_set_coarse_y(&ppu->vram_reg.curr_addr, 0);
-				break;
-			default:
-				loopy_set_coarse_y(&ppu->vram_reg.curr_addr, coarse_y + 1);
-				break;
+		case 29:
+			loopy_set_coarse_y(&ppu->vram_reg.curr_addr, 0);
+			loopy_toggle_nametable_y(&ppu->vram_reg.curr_addr);
+			break;
+		case 31:
+			loopy_set_coarse_y(&ppu->vram_reg.curr_addr, 0);
+			break;
+		default:
+			loopy_set_coarse_y(&ppu->vram_reg.curr_addr, coarse_y + 1);
+			break;
 		}
 	}
 }
@@ -800,15 +800,15 @@ sprite_pipeline(ppu *ppu)
 	 */
 	
 	switch (ppu->cycle) {
-		case 1:
-			clear_sprites(ppu);
-			break;
-		case 65:
-			evaluate_sprites(ppu);
-			break;
-		case 257:
-			fetch_sprites(ppu);
-			break;
+	case 1:
+		clear_sprites(ppu);
+		break;
+	case 65:
+		evaluate_sprites(ppu);
+		break;
+	case 257:
+		fetch_sprites(ppu);
+		break;
 	}
 }
 
@@ -821,21 +821,21 @@ background_pipeline(ppu *ppu, int visible_pixel, int prerender_pixel)
 
 	if (in_fetch_range) {
 		switch (ppu->cycle % 8) {
-			case 0:
-				update_x_scroll(ppu);
-				break;
-			case 1:
-				fetch_tile_id(ppu);
-				break;
-			case 3:
-				fetch_attr_table(ppu);
-				break;
-			case 5:
-				fetch_lo_tile(ppu);
-				break;
-			case 7:
-				fetch_hi_tile(ppu);
-				break;
+		case 0:
+			update_x_scroll(ppu);
+			break;
+		case 1:
+			fetch_tile_id(ppu);
+			break;
+		case 3:
+			fetch_attr_table(ppu);
+			break;
+		case 5:
+			fetch_lo_tile(ppu);
+			break;
+		case 7:
+			fetch_hi_tile(ppu);
+			break;
 		}
 	}
 
@@ -929,12 +929,12 @@ uint8_t
 ppu_read(ppu *ppu, uint16_t addr)
 {
 	switch (addr) {
-		case PPUSTATUS:
-			return ppustatus_read(ppu);
-		case OAMDATA:
-			return ppu->oam.bytes[ppu->oam_addr];
-		case PPUDATA:
-			return ppudata_read(ppu);
+	case PPUSTATUS:
+		return ppustatus_read(ppu);
+	case OAMDATA:
+		return ppu->oam.bytes[ppu->oam_addr];
+	case PPUDATA:
+		return ppudata_read(ppu);
 	}
 
 	return ppu->io_bus;
@@ -949,37 +949,37 @@ ppu_write(ppu *ppu, uint16_t addr, uint8_t val)
 	}
 
 	switch (addr) {
-		case PPUCTRL:
-			if (should_trigger_nmi(ppu->ppu_ctrl, val, ppu->ppu_status)) {
-				bus_cpu_trigger_nmi(ppu->bus);
-			}
+	case PPUCTRL:
+		if (should_trigger_nmi(ppu->ppu_ctrl, val, ppu->ppu_status)) {
+			bus_cpu_trigger_nmi(ppu->bus);
+		}
 
-			ppu->ppu_ctrl = val;
-			loopy_set_nametable_x(&ppu->vram_reg.tmp_addr, val & 0x1);
-			loopy_set_nametable_y(&ppu->vram_reg.tmp_addr, (val & 0x2) >> 1);
-			break;
-		case PPUMASK:
-			ppu->ppu_mask = val;
-			break;
-		case OAMADDR:
-			ppu->oam_addr = val;
-			break;
-		case OAMDATA:
-			ppu->oam.bytes[ppu->oam_addr] = val;
-			ppu->oam_addr++;
-			break;
-		case PPUSCROLL:
-			scroll_reg_write(ppu, val);
-			break;
-		case PPUADDR:
-			vram_reg_write(ppu, val);
-			break;
-		case PPUDATA:
-			vram_data_write(ppu, vram_addr_read(ppu), val); /* TODO: move vram_addr_read into vram_data_write */
-			break;
-		case OAMDMA:
-			oam_dma_write(ppu, val);
-			break;
+		ppu->ppu_ctrl = val;
+		loopy_set_nametable_x(&ppu->vram_reg.tmp_addr, val & 0x1);
+		loopy_set_nametable_y(&ppu->vram_reg.tmp_addr, (val & 0x2) >> 1);
+		break;
+	case PPUMASK:
+		ppu->ppu_mask = val;
+		break;
+	case OAMADDR:
+		ppu->oam_addr = val;
+		break;
+	case OAMDATA:
+		ppu->oam.bytes[ppu->oam_addr] = val;
+		ppu->oam_addr++;
+		break;
+	case PPUSCROLL:
+		scroll_reg_write(ppu, val);
+		break;
+	case PPUADDR:
+		vram_reg_write(ppu, val);
+		break;
+	case PPUDATA:
+		vram_data_write(ppu, vram_addr_read(ppu), val); /* TODO: move vram_addr_read into vram_data_write */
+		break;
+	case OAMDMA:
+		oam_dma_write(ppu, val);
+		break;
 	}
 
 	/* TODO: handle addr >= VRAM_SIZE ? */

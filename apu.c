@@ -176,47 +176,47 @@ frame_counter_tick(apu *apu)
 
 	if (apu->five_step_mode) {
 		switch (apu->frame_cycle) {
-			case 7457:
-			case 22371:
-				quarter_frame_clock(apu);
-				break;
-			case 14913:
-			case 37281:
-				quarter_frame_clock(apu);
-				half_frame_clock(apu);
-				break;
-			case 37282:
-				apu->frame_cycle = 0;
-				break;
-			default:
-				break;
-		}
-		return;
-	}
-	
-	switch (apu->frame_cycle) {
 		case 7457:
 		case 22371:
 			quarter_frame_clock(apu);
 			break;
 		case 14913:
+		case 37281:
 			quarter_frame_clock(apu);
 			half_frame_clock(apu);
 			break;
-		case 29828:
-			apu->frame_irq = 1;
-			break;
-		case 29829:
-			quarter_frame_clock(apu);
-			half_frame_clock(apu);
-			apu->frame_irq = 1;
-			break;
-		case 29830:
-			apu->frame_irq = !apu->frame_irq_inhibit;
+		case 37282:
 			apu->frame_cycle = 0;
 			break;
 		default:
 			break;
+		}
+		return;
+	}
+	
+	switch (apu->frame_cycle) {
+	case 7457:
+	case 22371:
+		quarter_frame_clock(apu);
+		break;
+	case 14913:
+		quarter_frame_clock(apu);
+		half_frame_clock(apu);
+		break;
+	case 29828:
+		apu->frame_irq = 1;
+		break;
+	case 29829:
+		quarter_frame_clock(apu);
+		half_frame_clock(apu);
+		apu->frame_irq = 1;
+		break;
+	case 29830:
+		apu->frame_irq = !apu->frame_irq_inhibit;
+		apu->frame_cycle = 0;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -381,26 +381,26 @@ static void
 pulse_write(apu_pulse *pulse, uint16_t addr, uint8_t val)
 {
 	switch (addr & 0x03) {
-		case 0:
-			pulse->duty = val >> 6;
-			envelope_write(&pulse->envelope, &pulse->length, val);
-			break;
-		case 1:
-			pulse->sweep.enabled = (val & 0x80) != 0;
-			pulse->sweep.period = (val >> 4) & 0x07;
-			pulse->sweep.negate = (val & 0x08) != 0;
-			pulse->sweep.shift = val & 0x07;
-			pulse->sweep.reload = 1;
-			break;
-		case 2:
-			period_write_lo(&pulse->period, val);
-			break;
-		case 3:
-			period_write_hi(&pulse->period, val);
-			pulse->step = 0;
-			pulse->envelope.start = 1;
-			length_load(&pulse->length, val);
-			break;
+	case 0:
+		pulse->duty = val >> 6;
+		envelope_write(&pulse->envelope, &pulse->length, val);
+		break;
+	case 1:
+		pulse->sweep.enabled = (val & 0x80) != 0;
+		pulse->sweep.period = (val >> 4) & 0x07;
+		pulse->sweep.negate = (val & 0x08) != 0;
+		pulse->sweep.shift = val & 0x07;
+		pulse->sweep.reload = 1;
+		break;
+	case 2:
+		period_write_lo(&pulse->period, val);
+		break;
+	case 3:
+		period_write_hi(&pulse->period, val);
+		pulse->step = 0;
+		pulse->envelope.start = 1;
+		length_load(&pulse->length, val);
+		break;
 	}
 }
 
@@ -529,48 +529,48 @@ void
 apu_write(apu *apu, uint16_t addr, uint8_t val)
 {
 	switch (addr) {
-		case 0x4000:
-		case 0x4001:
-		case 0x4002:
-		case 0x4003:
-			pulse_write(&apu->pulse[0], addr, val);
-			break;
-		case 0x4004:
-		case 0x4005:
-		case 0x4006:
-		case 0x4007:
-			pulse_write(&apu->pulse[1], addr, val);
-			break;
-		case 0x4008:
-			apu->triangle.length.halt = (val & 0x80) != 0;
-			apu->triangle.linear_reload_value = val & 0x7F;
-			break;
-		case 0x400A:
-			period_write_lo(&apu->triangle.period, val);
-			break;
-		case 0x400B:
-			period_write_hi(&apu->triangle.period, val);
-			apu->triangle.linear_reload = 1;
-			length_load(&apu->triangle.length, val);
-			break;
-		case 0x400C:
-			envelope_write(&apu->noise.envelope, &apu->noise.length, val);
-			break;
-		case 0x400E:
-			apu->noise.mode = (val & 0x80) != 0;
-			apu->noise.period = noise_period_table[val & 0x0F];
-			break;
-		case 0x400F:
-			apu->noise.envelope.start = 1;
-			length_load(&apu->noise.length, val);
-			break;
-		case 0x4015:
-			apu_write_status(apu, val);
-			break;
-		case 0x4017:
-			apu_write_frame_counter(apu, val);
-			break;
-		default:
-			break;
+	case 0x4000:
+	case 0x4001:
+	case 0x4002:
+	case 0x4003:
+		pulse_write(&apu->pulse[0], addr, val);
+		break;
+	case 0x4004:
+	case 0x4005:
+	case 0x4006:
+	case 0x4007:
+		pulse_write(&apu->pulse[1], addr, val);
+		break;
+	case 0x4008:
+		apu->triangle.length.halt = (val & 0x80) != 0;
+		apu->triangle.linear_reload_value = val & 0x7F;
+		break;
+	case 0x400A:
+		period_write_lo(&apu->triangle.period, val);
+		break;
+	case 0x400B:
+		period_write_hi(&apu->triangle.period, val);
+		apu->triangle.linear_reload = 1;
+		length_load(&apu->triangle.length, val);
+		break;
+	case 0x400C:
+		envelope_write(&apu->noise.envelope, &apu->noise.length, val);
+		break;
+	case 0x400E:
+		apu->noise.mode = (val & 0x80) != 0;
+		apu->noise.period = noise_period_table[val & 0x0F];
+		break;
+	case 0x400F:
+		apu->noise.envelope.start = 1;
+		length_load(&apu->noise.length, val);
+		break;
+	case 0x4015:
+		apu_write_status(apu, val);
+		break;
+	case 0x4017:
+		apu_write_frame_counter(apu, val);
+		break;
+	default:
+		break;
 	}
 }

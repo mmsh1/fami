@@ -14,14 +14,14 @@ controller_output(const controller *c)
 	}
 
 	switch (c->shift) {
-		case 0: return 0x40 | get_button_state(c->buttons, BUTTON_A);
-		case 1: return 0x40 | get_button_state(c->buttons, BUTTON_B);
-		case 2: return 0x40 | get_button_state(c->buttons, BUTTON_SELECT);
-		case 3: return 0x40 | get_button_state(c->buttons, BUTTON_START);
-		case 4: return 0x40 | get_button_state(c->buttons, BUTTON_UP);
-		case 5: return 0x40 | get_button_state(c->buttons, BUTTON_DOWN);
-		case 6: return 0x40 | get_button_state(c->buttons, BUTTON_LEFT);
-		case 7: return 0x40 | get_button_state(c->buttons, BUTTON_RIGHT);
+	case 0: return 0x40 | get_button_state(c->buttons, BUTTON_A);
+	case 1: return 0x40 | get_button_state(c->buttons, BUTTON_B);
+	case 2: return 0x40 | get_button_state(c->buttons, BUTTON_SELECT);
+	case 3: return 0x40 | get_button_state(c->buttons, BUTTON_START);
+	case 4: return 0x40 | get_button_state(c->buttons, BUTTON_UP);
+	case 5: return 0x40 | get_button_state(c->buttons, BUTTON_DOWN);
+	case 6: return 0x40 | get_button_state(c->buttons, BUTTON_LEFT);
+	case 7: return 0x40 | get_button_state(c->buttons, BUTTON_RIGHT);
 	}
 
 	return 0x41;
