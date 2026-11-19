@@ -32,7 +32,6 @@ typedef struct {
 	uint8_t idx;
 	const char *name;
 	opcode_func func;
-	uint8_t size;
 	uint8_t cycles;
 	addr_mode mode;
 } instruction;
@@ -197,7 +196,7 @@ static void OP_TAS(cpu *);
 
 static void OP_ILL(cpu *); /* illegal */
 
-static instruction
+static const instruction
 optable[0xFF + 1] = {
 	{ .idx = 0x00, .name = "BRK", .func = OP_BRK, .cycles = 7, .mode = ADDR_IMP },
 	{ .idx = 0x01, .name = "ORA", .func = OP_ORA, .cycles = 6, .mode = ADDR_INX },
@@ -711,41 +710,16 @@ handle_nmi(cpu *cpu)
 	cpu->PC = get16_addr(cpu, VECTOR_NMI);
 }
 
-static void
-ADDR_ABS(cpu *cpu)
-{
-	cpu->addr = read16(cpu);
-}
-
-static void
-ADDR_ACC(cpu *cpu)
-{
-	(void)cpu;
-}
-
-static void
-ADDR_IAX(cpu *cpu)
-{
-	cpu->addr = read16(cpu) + cpu->X;
-}
-
-static void
-ADDR_IAY(cpu *cpu)
-{
-	cpu->addr = read16(cpu) + cpu->Y;
-}
-
-static void
-ADDR_IMM(cpu *cpu)
-{
-	cpu->addr = cpu->PC++;
-}
-
-static void
-ADDR_IMP(cpu *cpu)
-{
-	(void)cpu;
-}
+static void ADDR_ABS(cpu *cpu) { cpu->addr = read16(cpu); }
+static void ADDR_ACC(cpu *cpu) { (void)cpu; }
+static void ADDR_IAX(cpu *cpu) { cpu->addr = read16(cpu) + cpu->X; }
+static void ADDR_IAY(cpu *cpu) { cpu->addr = read16(cpu) + cpu->Y; }
+static void ADDR_IMM(cpu *cpu) { cpu->addr = cpu->PC++; }
+static void ADDR_IMP(cpu *cpu) { (void)cpu; }
+static void ADDR_IZX(cpu *cpu) { cpu->addr = (read8(cpu) + cpu->X) & 0x00FF; }
+static void ADDR_IZY(cpu *cpu) { cpu->addr = (read8(cpu) + cpu->Y) & 0x00FF; }
+static void ADDR_ZPG(cpu *cpu) { cpu->addr = read8(cpu); }
+static void ADDR_ILL(cpu *cpu) { (void)cpu; }
 
 static void
 ADDR_IND(cpu *cpu)
@@ -784,34 +758,10 @@ ADDR_INY(cpu *cpu)
 }
 
 static void
-ADDR_IZX(cpu *cpu)
-{
-	cpu->addr = (read8(cpu) + cpu->X) & 0x00FF;
-}
-
-static void
-ADDR_IZY(cpu *cpu)
-{
-	cpu->addr = (read8(cpu) + cpu->Y) & 0x00FF;
-}
-
-static void
 ADDR_REL(cpu *cpu)
 {
 	int8_t offset = (int8_t)read8(cpu);
 	cpu->addr = (uint16_t)(cpu->PC + offset);
-}
-
-static void
-ADDR_ZPG(cpu *cpu) {
-	cpu->addr = read8(cpu);
-}
-
-static void
-ADDR_ILL(cpu *cpu)
-{
-	(void)cpu; /* to remove compiler warning */
-	fprintf(stderr, "illegal address mode!\n");
 }
 
 static void
