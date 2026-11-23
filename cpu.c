@@ -886,29 +886,10 @@ OP_BVS(cpu *cpu)
 	}
 }
 
-static void
-OP_CLC(cpu *cpu)
-{
-	unset_c(cpu);
-}
-
-static void
-OP_CLD(cpu *cpu)
-{
-	unset_d(cpu);
-}
-
-static void
-OP_CLI(cpu *cpu)
-{
-	unset_i(cpu);
-}
-
-static void
-OP_CLV(cpu *cpu)
-{
-	unset_v(cpu);
-}
+static void OP_CLC(cpu *cpu) { unset_c(cpu); }
+static void OP_CLD(cpu *cpu) { unset_d(cpu); }
+static void OP_CLI(cpu *cpu) { unset_i(cpu); }
+static void OP_CLV(cpu *cpu) { unset_v(cpu); }
 
 static void
 OP_CMP(cpu *cpu)
@@ -1067,17 +1048,8 @@ OP_ORA(cpu *cpu)
 	upd_zn(cpu, cpu->A);
 }
 
-static void
-OP_PHA(cpu *cpu)
-{
-	push8(cpu, cpu->A);
-}
-
-static void
-OP_PHP(cpu *cpu)
-{
-	push8(cpu, cpu->P | MASK_BREAK | MASK_UNUSED);
-}
+static void OP_PHA(cpu *cpu) { push8(cpu, cpu->A); }
+static void OP_PHP(cpu *cpu) { push8(cpu, cpu->P | MASK_BREAK | MASK_UNUSED); }
 
 static void
 OP_PLA(cpu *cpu)
@@ -1161,41 +1133,12 @@ OP_SBC(cpu *cpu)
 	upd_zn(cpu, cpu->A);
 }
 
-static void
-OP_SEC(cpu *cpu)
-{
-	set_c(cpu);
-}
-
-static void
-OP_SED(cpu *cpu)
-{
-	set_d(cpu);
-}
-
-static void
-OP_SEI(cpu *cpu)
-{
-	set_i(cpu);
-}
-
-static void
-OP_STA(cpu *cpu)
-{
-	write8(cpu, cpu->A);
-}
-
-static void
-OP_STX(cpu *cpu)
-{
-	write8(cpu, cpu->X);
-}
-
-static void
-OP_STY(cpu *cpu)
-{
-	write8(cpu, cpu->Y);
-}
+static void OP_SEC(cpu *cpu) { set_c(cpu); }
+static void OP_SED(cpu *cpu) { set_d(cpu); }
+static void OP_SEI(cpu *cpu) { set_i(cpu); }
+static void OP_STA(cpu *cpu) { write8(cpu, cpu->A); }
+static void OP_STX(cpu *cpu) { write8(cpu, cpu->X); }
+static void OP_STY(cpu *cpu) { write8(cpu, cpu->Y); }
 
 static void
 OP_TAX(cpu *cpu)
@@ -1388,8 +1331,7 @@ OP_TAS(cpu *cpu)
 static void
 OP_ILL(cpu *cpu)
 {
-	(void)cpu;
-	fprintf(stderr, "illegal opcode!\n"); /* TODO: remove */
+	fprintf(stderr, "illegal opcode: %d\n", cpu->opcode); /* TODO: remove */
 	return;
 }
 
