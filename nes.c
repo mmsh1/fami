@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "apu.h"
 #include "audio.h"
 #include "bus.h"
 #include "gfx.h"
