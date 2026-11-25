@@ -60,8 +60,7 @@ audio_init(uint32_t sample_rate)
 		return;
 	}
 
-	audio.stream = LoadAudioStream((unsigned int)sample_rate, 16, 1);
-
+	audio.stream = LoadAudioStream(sample_rate, 16, 1);
 	if (!IsAudioStreamValid(audio.stream)) {
 		return;
 	}
