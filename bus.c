@@ -1,22 +1,22 @@
 #include "bus.h"
 
 void
-bus_init(bus *bus, apu *apu, cpu *cpu, ppu *ppu, uint8_t *ram, controller *controller, cartrige *rom)
+bus_init(bus *b, apu *apu, cpu *cpu, ppu *ppu, uint8_t *ram, controller *controller, cartridge *rom)
 {
-	bus->apu = apu;
-	bus->cpu = cpu;
-	bus->ppu = ppu;
-	bus->ram = ram;
-	bus->controller = controller;
-	bus->rom = rom;
+	b->apu = apu;
+	b->cpu = cpu;
+	b->ppu = ppu;
+	b->ram = ram;
+	b->controller = controller;
+	b->rom = rom;
 }
 
 void bus_apu_reset(bus *b) { apu_reset(b->apu, b); }
 void bus_apu_tick(bus *b)  { apu_tick(b->apu); }
 
-uint8_t bus_cartrige_get_mirroring(bus *b)                  { return cartrige_get_mirroring(b->rom); }
-uint8_t bus_cartrige_read(bus *b, uint16_t addr)            { return cartrige_read(b->rom, addr); }
-void bus_cartrige_write(bus *b, uint16_t addr, uint8_t val) { cartrige_write(b->rom, addr, val); }
+uint8_t bus_cartridge_get_mirroring(bus *b)                  { return cartridge_get_mirroring(b->rom); }
+uint8_t bus_cartridge_read(bus *b, uint16_t addr)            { return cartridge_read(b->rom, addr); }
+void bus_cartridge_write(bus *b, uint16_t addr, uint8_t val) { cartridge_write(b->rom, addr, val); }
 
 uint64_t bus_cpu_get_total_cycles(bus *b)              { return cpu_get_total_cycles(b->cpu); }
 void bus_cpu_reset(bus *b)                             { cpu_reset(b->cpu, b); }
@@ -39,7 +39,7 @@ bus_read(bus *b, uint16_t addr)
 	if (addr == 0x4015) { return apu_read(b->apu, addr)  | (b->cpu->open_bus & 0x20); }
 	if (addr == 0x4016) { return (controller_read(b->controller, bus_cpu_get_total_cycles(b)) & 0x1F) | (b->cpu->open_bus & 0xE0); } /* TODO: wrap */
 	if (addr == 0x4017) { return b->cpu->open_bus; }
-	if (addr >= 0x6000) { return cartrige_read(b->rom, addr); }
+	if (addr >= 0x6000) { return cartridge_read(b->rom, addr); }
 	return b->cpu->open_bus;
 }
 
@@ -55,5 +55,5 @@ bus_write(bus *b, uint16_t addr, uint8_t val)
 	else if (addr == 0x4015) { apu_write(b->apu, addr, val); }
 	else if (addr == 0x4016) { controller_write(b->controller, val); }
 	else if (addr == 0x4017) { apu_write(b->apu, addr, val); }
-	else if (addr >= 0x6000) { cartrige_write(b->rom, addr, val); }
+	else if (addr >= 0x6000) { cartridge_write(b->rom, addr, val); }
 }

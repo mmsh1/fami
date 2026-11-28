@@ -1,5 +1,5 @@
-#ifndef NES_CARTRIGE_H
-#define NES_CARTRIGE_H
+#ifndef NES_CARTRIDGE_H
+#define NES_CARTRIDGE_H
 
 #include <stdint.h>
 
@@ -26,12 +26,12 @@ typedef struct {
 		//mapper_axrom m5;
 		//mapper_mmc2 m6;
 	} mapper_state;
-} cartrige;
+} cartridge;
 
-cartrige cartrige_create(const char *);
-void cartrige_free(cartrige *);
-mirroring_type cartrige_get_mirroring(const cartrige *);
-uint8_t cartrige_read(const cartrige *, uint16_t);
-void cartrige_write(cartrige *, uint16_t, uint8_t);
+cartridge cartridge_create(const char *);
+void cartridge_free(cartridge *);
+mirroring_type cartridge_get_mirroring(const cartridge *);
+uint8_t cartridge_read(const cartridge *, uint16_t);
+void cartridge_write(cartridge *, uint16_t, uint8_t);
 
-#endif /* NES_CARTRIGE_H */
+#endif /* NES_CARTRIDGE_H */

@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "cartrige.h"
+#include "cartridge.h"
 #include "ines.h"
 #include "mapper0.h"
 #include "mapper1.h"
@@ -36,7 +36,7 @@ get_mirroring_type(uint8_t flags6)
 }
 
 static int
-apply_header(cartrige *c, struct ines_header *header)
+apply_header(cartridge *c, struct ines_header *header)
 {
 	c->mirroring = get_mirroring_type(header->flags6);
 	if (c->mirroring == INVALID_MIRRORING) {
@@ -49,11 +49,14 @@ apply_header(cartrige *c, struct ines_header *header)
 }
 
 static int
-init_mapper(cartrige *c)
+init_mapper(cartridge *c)
 {
 	switch (c->mapper_id) {
 	case MAPPER_NROM:
 		mapper0_init(&c->mapper_state.m0, c->prg, c->chr, c->prg_ram, c->prg_size, c->chr_size);
+		return 0;
+	case MAPPER_MMC1:
+		mapper1_init(&c->mapper_state.m1, c->prg, c->chr, c->prg_ram, c->prg_size, c->chr_size);
 		return 0;
 	default:
 		fprintf(stderr, "ERROR: UNSUPPORTED MAPPER: %d\n", c->mapper_id);
@@ -82,7 +85,7 @@ load_block_from_file(FILE *rom, uint64_t size)
 }
 
 static int
-load_payload(FILE *rom, cartrige *c, const struct ines_header *h)
+load_payload(FILE *rom, cartridge *c, const struct ines_header *h)
 {
 	uint64_t prg_bytes = (uint64_t)h->prg_rom_size * PRG_ROM_BANK_SIZE;
 	uint64_t chr_bytes = h->chr_rom_size ? (uint64_t)h->chr_rom_size * CHR_ROM_BANK_SIZE : CHR_RAM_BANK_SIZE;
@@ -125,10 +128,10 @@ read_ines_header(FILE *rom, struct ines_header *header)
 	return 0;
 }
 
-cartrige
-cartrige_create(const char *path)
+cartridge
+cartridge_create(const char *path)
 {
-	cartrige c = { .invalid = 1 };
+	cartridge c = { .invalid = 1 };
 	struct ines_header header;
 	FILE *rom = fopen(path, "rb");
 
@@ -159,7 +162,7 @@ cartrige_create(const char *path)
 	goto done;
 
 fail:
-	cartrige_free(&c);
+	cartridge_free(&c);
 
 done:
 	fclose(rom);
@@ -167,18 +170,22 @@ done:
 }
 
 mirroring_type
-cartrige_get_mirroring(const cartrige *c)
+cartridge_get_mirroring(const cartridge *c)
 {
+	if (c->mapper_id == MAPPER_MMC1) {
+		return mapper1_get_mirroring(&c->mapper_state.m1);
+	}
 	return c->mirroring;
 }
 
 uint8_t
-cartrige_read(const cartrige *c, uint16_t addr)
+cartridge_read(const cartridge *c, uint16_t addr)
 {
 	switch (c->mapper_id) {
 	case MAPPER_NROM:
 		return mapper0_read(&c->mapper_state.m0, addr);
 	case MAPPER_MMC1:
+		return mapper1_read(&c->mapper_state.m1, addr);
 	case MAPPER_UXROM:
 	case MAPPER_CNROM:
 	case MAPPER_MMC3:
@@ -191,13 +198,15 @@ cartrige_read(const cartrige *c, uint16_t addr)
 }
 
 void
-cartrige_write(cartrige *c, uint16_t addr, uint8_t val)
+cartridge_write(cartridge *c, uint16_t addr, uint8_t val)
 {
 	switch (c->mapper_id) {
 	case MAPPER_NROM:
 		mapper0_write(&c->mapper_state.m0, addr, val);
 		break;
 	case MAPPER_MMC1:
+		mapper1_write(&c->mapper_state.m1, addr, val);
+		break;
 	case MAPPER_UXROM:
 	case MAPPER_CNROM:
 	case MAPPER_MMC3:
@@ -210,7 +219,7 @@ cartrige_write(cartrige *c, uint16_t addr, uint8_t val)
 }
 
 void
-cartrige_free(cartrige *c)
+cartridge_free(cartridge *c)
 {
 	free(c->prg);
 	free(c->chr);

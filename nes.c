@@ -14,7 +14,7 @@ typedef struct {
 	bus bus;
 	cpu cpu;
 	ppu ppu;
-	cartrige rom;
+	cartridge rom;
 	controller controller;
 	uint8_t ram[RAM_SIZE];
 } nes;
@@ -22,7 +22,7 @@ typedef struct {
 static void
 nes_cleanup(nes *n)
 {
-	cartrige_free(&n->rom);
+	cartridge_free(&n->rom);
 	audio_destroy();
 	gfx_destroy();
 }
@@ -30,9 +30,9 @@ nes_cleanup(nes *n)
 static int
 nes_loadrom(nes *n, const char *path)
 {
-	n->rom = cartrige_create(path);
+	n->rom = cartridge_create(path);
 	if (n->rom.invalid) {
-		fprintf(stderr, "ERROR: INVALID CARTRIGE!\n");
+		fprintf(stderr, "ERROR: INVALID CARTRIDGE!\n");
 		return -1;
 	}
 	return 0;

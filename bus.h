@@ -2,7 +2,7 @@
 #define NES_BUS_H
 
 #include "apu.h"
-#include "cartrige.h"
+#include "cartridge.h"
 #include "controller.h"
 #include "cpu.h"
 #include "ppu.h"
@@ -13,17 +13,17 @@ typedef struct bus {
 	ppu *ppu;
 	uint8_t *ram;
 	controller *controller;
-	cartrige *rom;
+	cartridge *rom;
 } bus;
 
-void bus_init(bus *, apu *, cpu *, ppu *, uint8_t *, controller *, cartrige *);
+void bus_init(bus *, apu *, cpu *, ppu *, uint8_t *, controller *, cartridge *);
 
 void bus_apu_reset(bus *);
 void bus_apu_tick(bus *);
 
-uint8_t bus_cartrige_get_mirroring(bus *);
-uint8_t bus_cartrige_read(bus *, uint16_t );
-void bus_cartrige_write(bus *, uint16_t, uint8_t);
+uint8_t bus_cartridge_get_mirroring(bus *);
+uint8_t bus_cartridge_read(bus *, uint16_t );
+void bus_cartridge_write(bus *, uint16_t, uint8_t);
 
 uint64_t bus_cpu_get_total_cycles(bus *);
 void bus_cpu_reset(bus *);

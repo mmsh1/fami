@@ -160,10 +160,10 @@ create_empty_sprite()
 static inline void
 set_pixel(ppu *ppu, int x, int y, uint32_t color)
 {
-	uint8_t r = (color >> 24) & 0xFF;
-	uint8_t g = (color >> 16) & 0xFF;
-	uint8_t b = (color >> 8) & 0xFF;
-	uint8_t a = color & 0xFF;
+	uint8_t r = (uint8_t)(color >> 24);
+	uint8_t g = (uint8_t)(color >> 16);
+	uint8_t b = (uint8_t)(color >> 8);
+	uint8_t a = (uint8_t)color;
 	uint32_t rgba = (a << 24) | (b << 16) | (g << 8) | r;
 
 	ppu->frame_buffer[x + y * 256] = rgba;
@@ -187,7 +187,7 @@ reverse_bits(uint8_t x) {
 static uint16_t
 mirror_nametable_addr(ppu *ppu, uint16_t addr)
 {
-	mirroring_type mt = bus_cartrige_get_mirroring(ppu->bus);
+	mirroring_type mt = bus_cartridge_get_mirroring(ppu->bus);
 	switch (mt) {
 	case HORIZONTAL_MIRRORING:
 		addr = ((addr / 2) & 0x400) + (addr % 0x400);
@@ -279,9 +279,9 @@ get_bg_pixel_addr(ppu *ppu)
 	uint8_t bit_hi, bit_lo, color;
 	uint8_t pal_hi, pal_lo;
 	uint8_t x_scroll = ppu->vram_reg.fine_x_scroll;
+	uint8_t shift = 15 - x_scroll;
+	uint8_t palette;
 	uint16_t mask = 0x8000 >> x_scroll;
-	uint16_t shift = 15 - x_scroll;
-	uint16_t palette;
 	
 	if (!is_bg_left_col_enabled(ppu->ppu_mask) && ppu->cycle < 9) {
 		return 0;
@@ -299,7 +299,7 @@ get_bg_pixel_addr(ppu *ppu)
 	pal_lo = ((ppu->shift.attr_lo & mask) >> shift) & 0x01;
 	palette = (pal_hi << 1) | pal_lo;
 
-	return palette * 4 + color;
+	return (uint8_t)(palette * 4 + color);
 }
 
 static uint8_t
@@ -313,7 +313,7 @@ sprite_pixel_color(ppu *ppu, int i, int x)
 		return 0;
 	}
 
-	pixel_in_sprite = x - sprite_x;
+	pixel_in_sprite = (uint8_t)(x - sprite_x);
 	bit_hi = (ppu->fetched_sprites[i].tile_hi >> pixel_in_sprite) & 0x01;
 	bit_lo = (ppu->fetched_sprites[i].tile_lo >> pixel_in_sprite) & 0x01;
 	return (bit_hi << 1) | bit_lo;
@@ -338,7 +338,7 @@ get_fg_pixel_addr(ppu *ppu)
 		}
 
 		palette = 4 + get_sprite_palette(ppu->fetched_sprites[i].attributes);
-		return palette * 4 + color;
+		return (uint8_t)(palette * 4 + color);
 	}
 
 	return 0;
@@ -422,8 +422,10 @@ vram_addr_read(ppu *ppu)
 static uint8_t
 vram_data_read(ppu *ppu, uint16_t addr)
 {
+	addr &= 0x3FFF; /* TODO: rewrite somehow? */
+
 	if (addr < 0x2000) {
-		return bus_cartrige_read(ppu->bus, addr);
+		return bus_cartridge_read(ppu->bus, addr);
 	}
 
 	if (addr < 0x3F00) {
@@ -434,7 +436,7 @@ vram_data_read(ppu *ppu, uint16_t addr)
 		return palette_read(ppu, addr);
 	}
 
-	fprintf(stderr, "invalid vram_data_read\n");
+	fprintf(stderr, "invalid vram_data_read: %d\n", addr);
 	exit(1);
 	//return 0x0; /* TODO: assert? */
 }
@@ -442,8 +444,10 @@ vram_data_read(ppu *ppu, uint16_t addr)
 static void
 vram_data_write(ppu *ppu, uint16_t addr, uint8_t val)
 {
+	addr &= 0x3FFF; /* TODO: rewrite somehow? */
+
 	if (addr < 0x2000) {
-		bus_cartrige_write(ppu->bus, addr, val);
+		bus_cartridge_write(ppu->bus, addr, val);
 	} else if (addr < 0x3F00) {
 		nametable_write(ppu, addr, val);
 	} else if (addr < 0x4000) {
@@ -938,7 +942,6 @@ ppu_read(ppu *ppu, uint16_t addr)
 	}
 
 	return ppu->io_bus;
-	//return 0; /* TODO: handle addr >= VRAM_SIZE ? */
 }
 
 void
